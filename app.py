@@ -562,64 +562,18 @@ def researcher_dashboard():
                         st.success("Task marked as completed!")
                         st.rerun()
 
-    # Sidebar
+    # Sidebar - Clean with only navigation
     with st.sidebar:
-        st.image(LOGO_URL, width=180)
+        st.markdown("## AKRC Portal")
         st.markdown("---")
         
-        st.markdown("### 👤 Profile")
-        
-        # Display current profile image in sidebar
-        if profile["Profile Photo"]:
-            st.markdown(
-                f"""
-                <div style="text-align: center;">
-                    <img src="data:{image_type};base64,{profile['Profile Photo']}"
-                    style="
-                        width:80px;
-                        height:80px;
-                        border-radius:50%;
-                        object-fit:cover;
-                        border:3px solid #f2650a;
-                        margin-bottom:10px;
-                    ">
-                </div>
-                """,
-                unsafe_allow_html=True
-            )
-        else:
-            st.markdown(
-                """
-                <div style="text-align: center;">
-                    <div style="
-                        width:80px;
-                        height:80px;
-                        border-radius:50%;
-                        background:#f2650a;
-                        display:inline-flex;
-                        align-items:center;
-                        justify-content:center;
-                        color:white;
-                        font-size:30px;
-                        font-weight:bold;
-                        margin-bottom:10px;
-                    ">
-                    👤
-                    </div>
-                </div>
-                """,
-                unsafe_allow_html=True
-            )
-        
-        st.markdown(f"**{display_name}**")
-        
-        st.markdown("---")
-        
-        # Profile Settings button - opens dialog
+        # Profile Settings button
         if st.button("⚙️ Profile Settings", use_container_width=True):
             profile_settings_dialog(display_name, profile)
         
         st.markdown("---")
+        
+        # Logout button
         if st.button("🚪 Logout", use_container_width=True):
             st.session_state.logged_in = False
             st.session_state.user_type = None
@@ -731,8 +685,9 @@ def admin_dashboard():
         st.download_button("📥 Download as CSV", csv, "projects_export.csv", "text/csv")
 
     with st.sidebar:
-        st.image(LOGO_URL, width=180)
+        st.markdown("## AKRC Portal")
         st.markdown("---")
+        
         if st.button("🚪 Logout", use_container_width=True):
             st.session_state.logged_in = False
             st.session_state.user_type = None
