@@ -34,7 +34,7 @@ def load_data(sheet_name):
 
 def update_cell(sheet_name, row, col, value):
     client = connect_to_sheets()
-    sheet = client.open("Research Consultancy Dashboard").worksheet(sheet_name)
+    sheet = client.open("Advanced Knowledge Research Consultancy").worksheet(sheet_name)
     sheet.update_cell(row, col, value)
 
 # ============================================
@@ -167,7 +167,7 @@ def admin_dashboard():
     st.title("Admin Dashboard - Advanced Knowledge Research Consultancy")
 
     projects_df = load_data("Projects")
-    revenue_df = load_data("Project Revenue")
+    revenue_df = load_data("Projects Revenue")
     payments_df = load_data("Project Payments Received")
     payouts_df = load_data("Researcher Payouts")
 
