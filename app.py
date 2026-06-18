@@ -13,14 +13,11 @@ def connect_to_sheets():
     scope = ["https://spreadsheets.google.com/feeds",
              "https://www.googleapis.com/auth/drive"]
     
-    # For Streamlit Cloud — read from secrets at top level
     try:
         creds_dict = dict(st.secrets)
-        # Remove non-credential keys from secrets
         creds_dict.pop("admin_password", None)
         creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
     except Exception as e:
-        # Fallback for local development
         creds = ServiceAccountCredentials.from_json_keyfile_name("credentials.json", scope)
     
     client = gspread.authorize(creds)
@@ -137,10 +134,10 @@ def researcher_dashboard():
         st.divider()
 
         for idx, task in my_tasks.iterrows():
-            with st.expander(f"{task['Project Name']} - {task['Task Description']}"):
+            with st.expander(f"{task['Project Name']} - {task['Task Name/Description']}"):
                 col1, col2 = st.columns(2)
                 with col1:
-                    st.write(f"**Deadline:** {task['Deadline'].strftime('%Y-%m-%d')}")
+                    st.write(f"**Deadline:** {task['Project Deadline'].strftime('%Y-%m-%d')}")
                     st.write(f"**Days Remaining:** {task['Days Remaining']}")
                     st.write(f"**Status:** {task['Status Display']}")
                 with col2:
@@ -187,13 +184,13 @@ def admin_dashboard():
             completed = len(projects_df[projects_df['Status'] == 'Completed'])
             st.metric("Completed", completed)
         with col4:
-            overdue = len(projects_df[(pd.to_datetime(projects_df['Deadline']) < pd.Timestamp(date.today())) &
+            overdue = len(projects_df[(pd.to_datetime(projects_df['Project Deadline']) < pd.Timestamp(date.today())) &
                                     (projects_df['Status'] != 'Completed')])
             st.metric("Overdue", overdue)
 
         st.subheader("Completion by Project")
         project_progress = projects_df.groupby('Project Name').agg(
-            Total_Tasks=('Task Description', 'count'),
+            Total_Tasks=('Task Name/Description', 'count'),
             Completed_Tasks=('Status', lambda x: (x == 'Completed').sum())
         )
         project_progress['Completion %'] = (project_progress['Completed_Tasks'] / project_progress['Total_Tasks'] * 100).round(1)
