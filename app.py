@@ -155,6 +155,7 @@ st.markdown("""
         border-radius: 8px !important;
         background-color: #ffffff !important;
         overflow: hidden;
+        margin-bottom: 8px !important;
     }
 
     [data-testid="stExpander"] summary {
@@ -166,53 +167,54 @@ st.markdown("""
         padding: 12px 16px !important;
         list-style: none !important;
         position: relative !important;
+        cursor: pointer !important;
     }
 
+    /* Remove default markers */
     [data-testid="stExpander"] summary::marker,
     [data-testid="stExpander"] summary::-webkit-details-marker {
         display: none !important;
         content: none !important;
     }
 
+    /* Hide icon font text */
     [data-testid="stExpander"] summary [data-testid="stExpanderToggleIcon"],
     [data-testid="stExpander"] summary [data-testid="stIconMaterial"],
-    [data-testid="stExpander"] summary svg,
-    [data-testid="stExpander"] summary .material-icons,
-    [data-testid="stExpander"] summary span[class*="icon"] {
+    [data-testid="stExpander"] summary .material-icons {
         font-size: 0 !important;
         line-height: 0 !important;
-        width: 8px !important;
-        height: 8px !important;
-        color: transparent !important;
-        flex-shrink: 0 !important;
-        position: relative !important;
-        order: -1 !important;
-    }
-
-    [data-testid="stExpander"] summary [data-testid="stExpanderToggleIcon"]::before,
-    [data-testid="stExpander"] summary [data-testid="stIconMaterial"]::before {
-        content: '' !important;
-        position: absolute !important;
-        left: 0 !important;
-        top: 50% !important;
         width: 0 !important;
         height: 0 !important;
-        border-left: 5px solid #f2650a !important;
-        border-top: 4px solid transparent !important;
-        border-bottom: 4px solid transparent !important;
-        transform: translateY(-50%) !important;
-        transition: transform 0.15s ease !important;
+        color: transparent !important;
+        overflow: hidden !important;
+        display: inline-block !important;
     }
 
-    [data-testid="stExpander"] details[open] summary [data-testid="stExpanderToggleIcon"]::before,
-    [data-testid="stExpander"] details[open] summary [data-testid="stIconMaterial"]::before {
-        transform: translateY(-50%) rotate(90deg) !important;
+    /* Hide SVG icons */
+    [data-testid="stExpander"] summary svg {
+        display: none !important;
+    }
+
+    /* Add visible arrow indicator before the title */
+    [data-testid="stExpander"] summary::before {
+        content: '▶' !important;
+        display: inline-block !important;
+        font-size: 12px !important;
+        color: #f2650a !important;
+        margin-right: 8px !important;
+        transition: transform 0.2s ease !important;
+        flex-shrink: 0 !important;
+    }
+
+    /* Rotate arrow when open */
+    [data-testid="stExpander"] details[open] summary::before {
+        transform: rotate(90deg) !important;
     }
 
     [data-testid="stExpander"] summary span,
     [data-testid="stExpander"] summary p {
         font-family: 'Georgia', 'Times New Roman', serif !important;
-        font-size: 16px !important;
+        font-size: 15px !important;
         color: #1a1a1a !important;
         font-weight: 600 !important;
         margin: 0 !important;
