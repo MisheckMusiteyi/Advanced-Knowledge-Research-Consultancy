@@ -321,6 +321,8 @@ if 'user_type' not in st.session_state:
     st.session_state.user_type = None
 if 'researcher_name' not in st.session_state:
     st.session_state.researcher_name = None
+if 'profile_image' not in st.session_state:
+    st.session_state.profile_image = None
 
 # ============================================
 # LOGIN PAGE
@@ -380,7 +382,41 @@ def login_page():
 # RESEARCHER DASHBOARD
 # ============================================
 def researcher_dashboard():
-    st.title(f"Welcome, {st.session_state.researcher_name}")
+    # Profile section at top
+    col1, col2, col3 = st.columns([1, 3, 1])
+    with col1:
+        # Profile image uploader in sidebar
+        with st.sidebar:
+            st.markdown("### 👤 Profile")
+            uploaded_file = st.file_uploader("Upload profile photo", type=["png", "jpg", "jpeg"])
+            if uploaded_file is not None:
+                st.session_state.profile_image = uploaded_file.getvalue()
+        
+        # Display profile image
+        if st.session_state.profile_image is not None:
+            st.image(st.session_state.profile_image, width=120)
+        else:
+            # Default circle avatar with initials
+            initials = ''.join([name[0].upper() for name in st.session_state.researcher_name.split()[:2]])
+            st.markdown(f"""
+            <div style="width: 100px; height: 100px; border-radius: 50%; background-color: #f2650a; 
+                        display: flex; align-items: center; justify-content: center; margin: 0 auto;">
+                <span style="color: white; font-size: 36px; font-weight: bold; font-family: 'Georgia', serif;">{initials}</span>
+            </div>
+            """, unsafe_allow_html=True)
+    
+    with col2:
+        st.title(f"Welcome, {st.session_state.researcher_name}")
+    
+    with col3:
+        # Researcher name only
+        st.markdown(f"""
+        <div style="text-align: center; margin-top: 10px;">
+            <p style="color: #f2650a; font-weight: 700; font-size: 14px; margin: 5px 0 0 0;">{st.session_state.researcher_name}</p>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    st.divider()
     st.subheader("Your Active Tasks")
 
     projects_df = load_data("Projects")
@@ -444,6 +480,7 @@ def researcher_dashboard():
             st.session_state.logged_in = False
             st.session_state.user_type = None
             st.session_state.researcher_name = None
+            st.session_state.profile_image = None
             st.rerun()
 
 # ============================================
