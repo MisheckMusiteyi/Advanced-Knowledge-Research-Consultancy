@@ -148,7 +148,7 @@ st.markdown("""
     }
     
     /* ============================================
-       EXPANDERS - Native Streamlit with AKRC styling
+       EXPANDER FIX
        ============================================ */
     [data-testid="stExpander"] {
         border: 1px solid #f0f0f0 !important;
@@ -161,15 +161,64 @@ st.markdown("""
     [data-testid="stExpander"] summary {
         background-color: #fef9f5 !important;
         border-left: 3px solid #f2650a !important;
+        display: flex !important;
+        align-items: center !important;
+        gap: 10px !important;
         padding: 12px 16px !important;
+        list-style: none !important;
+        position: relative !important;
+        cursor: pointer !important;
+    }
+
+    /* Remove default markers */
+    [data-testid="stExpander"] summary::marker,
+    [data-testid="stExpander"] summary::-webkit-details-marker {
+        display: none !important;
+        content: none !important;
+    }
+
+    /* Hide icon font text */
+    [data-testid="stExpander"] summary [data-testid="stExpanderToggleIcon"],
+    [data-testid="stExpander"] summary [data-testid="stIconMaterial"],
+    [data-testid="stExpander"] summary .material-icons {
+        font-size: 0 !important;
+        line-height: 0 !important;
+        width: 0 !important;
+        height: 0 !important;
+        color: transparent !important;
+        overflow: hidden !important;
+        display: inline-block !important;
+    }
+
+    /* Hide SVG icons */
+    [data-testid="stExpander"] summary svg {
+        display: none !important;
+    }
+
+    /* Add visible arrow indicator before the title */
+    [data-testid="stExpander"] summary::before {
+        content: '▶' !important;
+        display: inline-block !important;
+        font-size: 12px !important;
+        color: #f2650a !important;
+        margin-right: 8px !important;
+        transition: transform 0.2s ease !important;
+        flex-shrink: 0 !important;
+    }
+
+    /* Rotate arrow when open */
+    [data-testid="stExpander"] details[open] summary::before {
+        transform: rotate(90deg) !important;
+    }
+
+    [data-testid="stExpander"] summary span,
+    [data-testid="stExpander"] summary p {
         font-family: 'Georgia', 'Times New Roman', serif !important;
         font-size: 15px !important;
         color: #1a1a1a !important;
         font-weight: 600 !important;
-    }
-
-    [data-testid="stExpander"] summary:hover {
-        background-color: #fef5ed !important;
+        margin: 0 !important;
+        line-height: 1.4 !important;
     }
 
     [data-testid="stExpanderDetails"] {
@@ -204,7 +253,7 @@ st.markdown("""
         font-family: 'Georgia', 'Times New Roman', serif !important;
     }
     
-    /* Fix paragraph spacing in expander content */
+    /* Fix paragraph spacing */
     [data-testid="stExpanderDetails"] .stMarkdown p {
         margin-bottom: 8px !important;
     }
