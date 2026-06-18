@@ -146,32 +146,30 @@ st.markdown("""
     
     /* ============================================
        EXPANDER FIX
-       Streamlit's expander header is a flex row that
-       contains an icon (the arrow/chevron) and a text
-       label as separate children. Targeting the old
-       ".streamlit-expanderHeader" class (and especially
-       overriding its inner <p> margins) breaks that flex
-       layout in current Streamlit versions and causes the
-       arrow icon to render on top of the label text.
+       Root cause: Streamlit renders the expander's chevron
+       using a Material Symbols icon font (a span whose text
+       content is a ligature name like "arrow_drop_down" /
+       "keyboard_arrow_right"). The browser only turns that
+       text into a glyph if the icon font loads successfully.
+       If the font fails to load (blocked request, offline
+       sandbox, slow network, restrictive CSP, etc.) the raw
+       ligature text is shown instead - and because that span
+       overlaps the title's layout box, you see literal text
+       like "arrow_drop_down" rendered on top of your project
+       name.
 
-       Fix: use the stable data-testid hooks, keep the
-       header itself a flex row with proper gap/alignment,
-       and only style the text node - never touch the icon
-       element's box model.
+       Fix: never depend on the icon font rendering correctly.
+       Hide the icon span's text content completely (font-size
+       0 collapses the fallback text to nothing) and draw a
+       small triangle with a CSS border instead, positioned in
+       a normal flex row next to the label. This can't break
+       regardless of font/network availability.
        ============================================ */
     [data-testid="stExpander"] {
         border: 1px solid #f0f0f0 !important;
         border-radius: 8px !important;
         background-color: #ffffff !important;
         overflow: hidden;
-    }
-
-    [data-testid="stExpanderToggleIcon"] {
-        /* Let the icon size itself naturally; do not force
-           width/height/margins here or it can collide with
-           the label text in some Streamlit versions. */
-        flex-shrink: 0;
-        color: #f2650a !important;
     }
 
     [data-testid="stExpander"] summary {
@@ -182,14 +180,57 @@ st.markdown("""
         gap: 10px !important;
         padding: 12px 16px !important;
         list-style: none !important;
+        position: relative !important;
     }
 
     /* Remove default <details> marker so it can't double up
-       with the custom toggle icon Streamlit renders */
+       with Streamlit's own toggle icon */
     [data-testid="stExpander"] summary::marker,
     [data-testid="stExpander"] summary::-webkit-details-marker {
         display: none !important;
         content: none !important;
+    }
+
+    /* Neutralize the icon font span entirely: collapse its
+       fallback text to invisible/zero-size rather than trying
+       to make the font load. This is what actually stops the
+       "arrow_drop_down" text from appearing. */
+    [data-testid="stExpander"] summary [data-testid="stExpanderToggleIcon"],
+    [data-testid="stExpander"] summary [data-testid="stIconMaterial"],
+    [data-testid="stExpander"] summary svg,
+    [data-testid="stExpander"] summary .material-icons,
+    [data-testid="stExpander"] summary span[class*="icon"] {
+        font-size: 0 !important;
+        line-height: 0 !important;
+        width: 8px !important;
+        height: 8px !important;
+        color: transparent !important;
+        flex-shrink: 0 !important;
+        position: relative !important;
+        order: -1 !important;
+    }
+
+    /* Draw our own arrow with a pure CSS triangle - this never
+       depends on any font or icon asset loading. */
+    [data-testid="stExpander"] summary [data-testid="stExpanderToggleIcon"]::before,
+    [data-testid="stExpander"] summary [data-testid="stIconMaterial"]::before {
+        content: '' !important;
+        position: absolute !important;
+        left: 0 !important;
+        top: 50% !important;
+        width: 0 !important;
+        height: 0 !important;
+        border-left: 5px solid #f2650a !important;
+        border-top: 4px solid transparent !important;
+        border-bottom: 4px solid transparent !important;
+        transform: translateY(-50%) !important;
+        transition: transform 0.15s ease !important;
+    }
+
+    /* Rotate our CSS arrow when the expander is open */
+    [data-testid="stExpander"] details[open] summary [data-testid="stExpanderToggleIcon"]::before,
+    [data-testid="stExpander"] details[open] summary [data-testid="stIconMaterial"]::before {
+        transform: translateY(-50%) rotate(90deg) !important;
     }
 
     [data-testid="stExpander"] summary span,
