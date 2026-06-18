@@ -302,10 +302,11 @@ def get_profile_data(username):
     return {
         "Username": username,
         "Display Name": "",
-        "Profile Photo": ""
+        "Profile Photo": "",
+        "Image Type": "image/png"
     }
 
-def save_profile(username, display_name, photo_b64=""):
+def save_profile(username, display_name, photo_b64="", image_type="image/png"):
     """Update or create profile records in Google Sheets."""
     client = connect_to_sheets()
     sheet = client.open("Advanced Knowledge Research Consultancy").worksheet("Researcher Profiles")
@@ -314,18 +315,18 @@ def save_profile(username, display_name, photo_b64=""):
     for idx, row in enumerate(records, start=2):
         if row["Username"] == username:
             sheet.update(f"B{idx}", display_name)
-            if photo_b64:
-                sheet.update(f"C{idx}", photo_b64)
+            sheet.update(f"C{idx}", photo_b64)
+            sheet.update(f"D{idx}", image_type)
             return
     
-    sheet.append_row([username, display_name, photo_b64])
+    sheet.append_row([username, display_name, photo_b64, image_type])
 
-def display_profile_image(photo_b64=None):
+def display_profile_image(photo_b64=None, image_type="image/png"):
     """Display the profile image in a circular format."""
     if photo_b64:
         st.markdown(
             f"""
-            <img src="data:image/png;base64,{photo_b64}"
+            <img src="data:{image_type};base64,{photo_b64}"
             style="
                 width:120px;
                 height:120px;
@@ -356,6 +357,37 @@ def display_profile_image(photo_b64=None):
             """,
             unsafe_allow_html=True
         )
+
+# ============================================
+# DIALOG: Profile Settings
+# ============================================
+@st.dialog("⚙️ Profile Settings")
+def profile_settings_dialog(display_name, profile):
+    """Profile settings popup dialog."""
+    new_name = st.text_input("Display Name", value=display_name)
+    new_photo = st.file_uploader("Profile Photo", type=["png", "jpg", "jpeg"])
+    
+    # Image preview before saving
+    if new_photo:
+        st.image(new_photo, width=150, caption="Profile Preview")
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("💾 Save Profile", use_container_width=True):
+            photo_b64 = profile["Profile Photo"]
+            image_type = profile.get("Image Type", "image/png")
+            
+            if new_photo:
+                image_type = new_photo.type
+                photo_b64 = base64.b64encode(new_photo.read()).decode()
+            
+            save_profile(st.session_state.username, new_name, photo_b64, image_type)
+            st.success("Profile updated successfully!")
+            st.rerun()
+    
+    with col2:
+        if st.button("❌ Cancel", use_container_width=True):
+            st.rerun()
 
 # ============================================
 # SESSION STATE
@@ -433,11 +465,12 @@ def researcher_dashboard():
     # Load profile data
     profile = get_profile_data(st.session_state.username)
     display_name = profile["Display Name"] if profile["Display Name"] else st.session_state.researcher_name
+    image_type = profile.get("Image Type", "image/png")
     
     # Profile section at top
     col1, col2, col3 = st.columns([1, 3, 1])
     with col1:
-        display_profile_image(profile["Profile Photo"])
+        display_profile_image(profile["Profile Photo"], image_type)
     
     with col2:
         st.title(f"Welcome, {display_name}")
@@ -507,7 +540,7 @@ def researcher_dashboard():
                         st.success("Task marked as completed!")
                         st.rerun()
 
-    # Sidebar with profile settings
+    # Sidebar
     with st.sidebar:
         st.image(LOGO_URL, width=180)
         st.markdown("---")
@@ -519,7 +552,7 @@ def researcher_dashboard():
             st.markdown(
                 f"""
                 <div style="text-align: center;">
-                    <img src="data:image/png;base64,{profile['Profile Photo']}"
+                    <img src="data:{image_type};base64,{profile['Profile Photo']}"
                     style="
                         width:80px;
                         height:80px;
@@ -556,21 +589,13 @@ def researcher_dashboard():
                 unsafe_allow_html=True
             )
         
+        st.markdown(f"**{display_name}**")
+        
         st.markdown("---")
-        st.subheader("⚙️ Profile Settings")
         
-        new_name = st.text_input("Display Name", value=display_name)
-        new_photo = st.file_uploader("Profile Photo", type=["png", "jpg", "jpeg"])
-        
-        if st.button("💾 Save Profile", use_container_width=True):
-            photo_b64 = profile["Profile Photo"]
-            
-            if new_photo:
-                photo_b64 = base64.b64encode(new_photo.read()).decode()
-            
-            save_profile(st.session_state.username, new_name, photo_b64)
-            st.success("Profile updated successfully!")
-            st.rerun()
+        # Profile Settings button - opens dialog
+        if st.button("⚙️ Profile Settings", use_container_width=True):
+            profile_settings_dialog(display_name, profile)
         
         st.markdown("---")
         if st.button("🚪 Logout", use_container_width=True):
