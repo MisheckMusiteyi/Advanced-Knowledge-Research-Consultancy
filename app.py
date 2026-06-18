@@ -109,8 +109,8 @@ def researcher_dashboard():
     else:
         today = date.today()
         my_tasks = my_tasks.copy()
-        my_tasks['Deadline'] = pd.to_datetime(my_tasks['Deadline'])
-        my_tasks['Days Remaining'] = (my_tasks['Deadline'] - pd.Timestamp(today)).dt.days
+        my_tasks['Project Deadline'] = pd.to_datetime(my_tasks['Project Deadline'])
+        my_tasks['Days Remaining'] = (my_tasks['Project Deadline'] - pd.Timestamp(today)).dt.days
 
         def status_color(row):
             if row['Status'] == 'Completed':
