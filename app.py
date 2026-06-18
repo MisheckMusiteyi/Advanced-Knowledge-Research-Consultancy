@@ -3,6 +3,8 @@ import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 import pandas as pd
 import json
+import base64
+from io import BytesIO
 from datetime import datetime, date
 
 # ============================================
@@ -146,24 +148,6 @@ st.markdown("""
     
     /* ============================================
        EXPANDER FIX
-       Root cause: Streamlit renders the expander's chevron
-       using a Material Symbols icon font (a span whose text
-       content is a ligature name like "arrow_drop_down" /
-       "keyboard_arrow_right"). The browser only turns that
-       text into a glyph if the icon font loads successfully.
-       If the font fails to load (blocked request, offline
-       sandbox, slow network, restrictive CSP, etc.) the raw
-       ligature text is shown instead - and because that span
-       overlaps the title's layout box, you see literal text
-       like "arrow_drop_down" rendered on top of your project
-       name.
-
-       Fix: never depend on the icon font rendering correctly.
-       Hide the icon span's text content completely (font-size
-       0 collapses the fallback text to nothing) and draw a
-       small triangle with a CSS border instead, positioned in
-       a normal flex row next to the label. This can't break
-       regardless of font/network availability.
        ============================================ */
     [data-testid="stExpander"] {
         border: 1px solid #f0f0f0 !important;
@@ -183,18 +167,12 @@ st.markdown("""
         position: relative !important;
     }
 
-    /* Remove default <details> marker so it can't double up
-       with Streamlit's own toggle icon */
     [data-testid="stExpander"] summary::marker,
     [data-testid="stExpander"] summary::-webkit-details-marker {
         display: none !important;
         content: none !important;
     }
 
-    /* Neutralize the icon font span entirely: collapse its
-       fallback text to invisible/zero-size rather than trying
-       to make the font load. This is what actually stops the
-       "arrow_drop_down" text from appearing. */
     [data-testid="stExpander"] summary [data-testid="stExpanderToggleIcon"],
     [data-testid="stExpander"] summary [data-testid="stIconMaterial"],
     [data-testid="stExpander"] summary svg,
@@ -210,8 +188,6 @@ st.markdown("""
         order: -1 !important;
     }
 
-    /* Draw our own arrow with a pure CSS triangle - this never
-       depends on any font or icon asset loading. */
     [data-testid="stExpander"] summary [data-testid="stExpanderToggleIcon"]::before,
     [data-testid="stExpander"] summary [data-testid="stIconMaterial"]::before {
         content: '' !important;
@@ -227,7 +203,6 @@ st.markdown("""
         transition: transform 0.15s ease !important;
     }
 
-    /* Rotate our CSS arrow when the expander is open */
     [data-testid="stExpander"] details[open] summary [data-testid="stExpanderToggleIcon"]::before,
     [data-testid="stExpander"] details[open] summary [data-testid="stIconMaterial"]::before {
         transform: translateY(-50%) rotate(90deg) !important;
@@ -275,8 +250,7 @@ st.markdown("""
         font-family: 'Georgia', 'Times New Roman', serif !important;
     }
     
-    /* Fix paragraph spacing - scoped so it doesn't touch
-       expander internals (which are handled above) */
+    /* Fix paragraph spacing */
     [data-testid="stExpanderDetails"] .stMarkdown p {
         margin-bottom: 8px !important;
     }
@@ -313,6 +287,77 @@ def update_cell(sheet_name, row, col, value):
     sheet.update_cell(row, col, value)
 
 # ============================================
+# PROFILE MANAGEMENT FUNCTIONS
+# ============================================
+def get_profile_data(username):
+    """Retrieve saved profile information from Google Sheets."""
+    try:
+        df = load_data("Researcher Profiles")
+        user = df[df["Username"] == username]
+        if len(user) > 0:
+            return user.iloc[0].to_dict()
+    except:
+        pass
+    
+    return {
+        "Username": username,
+        "Display Name": "",
+        "Profile Photo": ""
+    }
+
+def save_profile(username, display_name, photo_b64=""):
+    """Update or create profile records in Google Sheets."""
+    client = connect_to_sheets()
+    sheet = client.open("Advanced Knowledge Research Consultancy").worksheet("Researcher Profiles")
+    records = sheet.get_all_records()
+    
+    for idx, row in enumerate(records, start=2):
+        if row["Username"] == username:
+            sheet.update(f"B{idx}", display_name)
+            if photo_b64:
+                sheet.update(f"C{idx}", photo_b64)
+            return
+    
+    sheet.append_row([username, display_name, photo_b64])
+
+def display_profile_image(photo_b64=None):
+    """Display the profile image in a circular format."""
+    if photo_b64:
+        st.markdown(
+            f"""
+            <img src="data:image/png;base64,{photo_b64}"
+            style="
+                width:120px;
+                height:120px;
+                border-radius:50%;
+                object-fit:cover;
+                border:4px solid #f2650a;
+            ">
+            """,
+            unsafe_allow_html=True
+        )
+    else:
+        st.markdown(
+            """
+            <div style="
+                width:120px;
+                height:120px;
+                border-radius:50%;
+                background:#f2650a;
+                display:flex;
+                align-items:center;
+                justify-content:center;
+                color:white;
+                font-size:50px;
+                font-weight:bold;
+            ">
+            👤
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+
+# ============================================
 # SESSION STATE
 # ============================================
 if 'logged_in' not in st.session_state:
@@ -321,6 +366,8 @@ if 'user_type' not in st.session_state:
     st.session_state.user_type = None
 if 'researcher_name' not in st.session_state:
     st.session_state.researcher_name = None
+if 'username' not in st.session_state:
+    st.session_state.username = None
 if 'profile_image' not in st.session_state:
     st.session_state.profile_image = None
 
@@ -355,6 +402,7 @@ def login_page():
                 if len(match) > 0:
                     st.session_state.logged_in = True
                     st.session_state.user_type = "Researcher"
+                    st.session_state.username = username
                     st.session_state.researcher_name = match.iloc[0]['Researcher Name']
                     st.success("Login successful!")
                     st.rerun()
@@ -382,37 +430,23 @@ def login_page():
 # RESEARCHER DASHBOARD
 # ============================================
 def researcher_dashboard():
+    # Load profile data
+    profile = get_profile_data(st.session_state.username)
+    display_name = profile["Display Name"] if profile["Display Name"] else st.session_state.researcher_name
+    
     # Profile section at top
     col1, col2, col3 = st.columns([1, 3, 1])
     with col1:
-        # Profile image uploader in sidebar
-        with st.sidebar:
-            st.markdown("### 👤 Profile")
-            uploaded_file = st.file_uploader("Upload profile photo", type=["png", "jpg", "jpeg"])
-            if uploaded_file is not None:
-                st.session_state.profile_image = uploaded_file.getvalue()
-        
-        # Display profile image
-        if st.session_state.profile_image is not None:
-            st.image(st.session_state.profile_image, width=120)
-        else:
-            # Default circle avatar with initials
-            initials = ''.join([name[0].upper() for name in st.session_state.researcher_name.split()[:2]])
-            st.markdown(f"""
-            <div style="width: 100px; height: 100px; border-radius: 50%; background-color: #f2650a; 
-                        display: flex; align-items: center; justify-content: center; margin: 0 auto;">
-                <span style="color: white; font-size: 36px; font-weight: bold; font-family: 'Georgia', serif;">{initials}</span>
-            </div>
-            """, unsafe_allow_html=True)
+        display_profile_image(profile["Profile Photo"])
     
     with col2:
-        st.title(f"Welcome, {st.session_state.researcher_name}")
+        st.title(f"Welcome, {display_name}")
     
     with col3:
-        # Researcher name only
+        # Display name
         st.markdown(f"""
         <div style="text-align: center; margin-top: 10px;">
-            <p style="color: #f2650a; font-weight: 700; font-size: 14px; margin: 5px 0 0 0;">{st.session_state.researcher_name}</p>
+            <p style="color: #f2650a; font-weight: 700; font-size: 14px; margin: 5px 0 0 0;">{display_name}</p>
         </div>
         """, unsafe_allow_html=True)
     
@@ -473,13 +507,77 @@ def researcher_dashboard():
                         st.success("Task marked as completed!")
                         st.rerun()
 
+    # Sidebar with profile settings
     with st.sidebar:
         st.image(LOGO_URL, width=180)
+        st.markdown("---")
+        
+        st.markdown("### 👤 Profile")
+        
+        # Display current profile image in sidebar
+        if profile["Profile Photo"]:
+            st.markdown(
+                f"""
+                <div style="text-align: center;">
+                    <img src="data:image/png;base64,{profile['Profile Photo']}"
+                    style="
+                        width:80px;
+                        height:80px;
+                        border-radius:50%;
+                        object-fit:cover;
+                        border:3px solid #f2650a;
+                        margin-bottom:10px;
+                    ">
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
+        else:
+            st.markdown(
+                """
+                <div style="text-align: center;">
+                    <div style="
+                        width:80px;
+                        height:80px;
+                        border-radius:50%;
+                        background:#f2650a;
+                        display:inline-flex;
+                        align-items:center;
+                        justify-content:center;
+                        color:white;
+                        font-size:30px;
+                        font-weight:bold;
+                        margin-bottom:10px;
+                    ">
+                    👤
+                    </div>
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
+        
+        st.markdown("---")
+        st.subheader("⚙️ Profile Settings")
+        
+        new_name = st.text_input("Display Name", value=display_name)
+        new_photo = st.file_uploader("Profile Photo", type=["png", "jpg", "jpeg"])
+        
+        if st.button("💾 Save Profile", use_container_width=True):
+            photo_b64 = profile["Profile Photo"]
+            
+            if new_photo:
+                photo_b64 = base64.b64encode(new_photo.read()).decode()
+            
+            save_profile(st.session_state.username, new_name, photo_b64)
+            st.success("Profile updated successfully!")
+            st.rerun()
+        
         st.markdown("---")
         if st.button("🚪 Logout", use_container_width=True):
             st.session_state.logged_in = False
             st.session_state.user_type = None
             st.session_state.researcher_name = None
+            st.session_state.username = None
             st.session_state.profile_image = None
             st.rerun()
 
