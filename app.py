@@ -28,7 +28,7 @@ def connect_to_sheets():
 
 def load_data(sheet_name):
     client = connect_to_sheets()
-    sheet = client.open("Research Consultancy Dashboard").worksheet(sheet_name)
+    sheet = client.open("Advanced Knowledge Research Consultancy").worksheet(sheet_name)
     data = sheet.get_all_records()
     return pd.DataFrame(data)
 
