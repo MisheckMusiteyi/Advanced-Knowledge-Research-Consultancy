@@ -6,6 +6,181 @@ import json
 from datetime import datetime, date
 
 # ============================================
+# PAGE CONFIGURATION - MUST BE FIRST
+# ============================================
+st.set_page_config(
+    page_title="AKRC Portal",
+    page_icon="🔬",
+    layout="wide"
+)
+
+# ============================================
+# LOGO URL
+# ============================================
+LOGO_URL = "https://raw.githubusercontent.com/MisheckMusiteyi/Advanced-Knowledge-Research-Consultancy/285f1bab55b659e07c37687ca5f5c1b8a2e9bae8/Advanced%20Knowledge%20Research%20Consultancy.png"
+
+# ============================================
+# CUSTOM CSS STYLING
+# ============================================
+st.markdown("""
+<style>
+    /* Global font and background */
+    * {
+        font-family: 'Georgia', 'Times New Roman', serif !important;
+    }
+    
+    .stApp {
+        background-color: #fef9f5;
+    }
+    
+    /* Faint orange watermark/background pattern */
+    .stApp::before {
+        content: '';
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: radial-gradient(ellipse at 20% 50%, rgba(242, 101, 10, 0.04) 0%, transparent 50%),
+                    radial-gradient(ellipse at 80% 20%, rgba(242, 101, 10, 0.04) 0%, transparent 50%),
+                    radial-gradient(ellipse at 50% 80%, rgba(242, 101, 10, 0.04) 0%, transparent 50%);
+        pointer-events: none;
+        z-index: 0;
+    }
+    
+    /* Main container */
+    .main .block-container {
+        padding-top: 2rem;
+        position: relative;
+        z-index: 1;
+    }
+    
+    /* Headers */
+    h1, h2, h3, h4, h5 {
+        color: #f2650a !important;
+        font-weight: 700 !important;
+        font-family: 'Georgia', 'Times New Roman', serif !important;
+    }
+    
+    h1 {
+        font-size: 2.2rem !important;
+        letter-spacing: 0.5px;
+    }
+    
+    h2 {
+        font-size: 1.6rem !important;
+    }
+    
+    /* Subheader divider */
+    hr {
+        border-color: #f2650a;
+    }
+    
+    /* Buttons */
+    .stButton > button {
+        background-color: #f2650a !important;
+        color: white !important;
+        border: none !important;
+        border-radius: 6px !important;
+        padding: 10px 24px !important;
+        font-weight: 600 !important;
+        font-family: 'Georgia', 'Times New Roman', serif !important;
+        transition: all 0.3s ease !important;
+    }
+    .stButton > button:hover {
+        background-color: #d45508 !important;
+        box-shadow: 0 4px 12px rgba(242, 101, 10, 0.3) !important;
+        transform: translateY(-1px);
+    }
+    
+    /* Scorecard/metrics */
+    [data-testid="stMetricValue"] {
+        color: #1a1a1a !important;
+        font-weight: 700 !important;
+        font-family: 'Georgia', 'Times New Roman', serif !important;
+    }
+    [data-testid="stMetricLabel"] {
+        color: #666666 !important;
+        font-family: 'Georgia', 'Times New Roman', serif !important;
+    }
+    
+    /* Sidebar */
+    [data-testid="stSidebar"] {
+        background-color: #1a1a1a !important;
+    }
+    [data-testid="stSidebar"] h1,
+    [data-testid="stSidebar"] h2 {
+        color: #f2650a !important;
+    }
+    [data-testid="stSidebar"] .stButton > button {
+        background-color: #f2650a !important;
+    }
+    
+    /* Radio buttons */
+    .stRadio label {
+        color: #333 !important;
+        font-family: 'Georgia', 'Times New Roman', serif !important;
+    }
+    
+    /* Tabs */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 8px;
+    }
+    .stTabs [data-baseweb="tab"] {
+        background-color: #f0f0f0;
+        border-radius: 6px 6px 0 0;
+        padding: 10px 20px;
+        color: #333;
+        font-family: 'Georgia', 'Times New Roman', serif !important;
+    }
+    .stTabs [aria-selected="true"] {
+        background-color: #f2650a !important;
+        color: white !important;
+    }
+    
+    /* Dataframes */
+    .stDataFrame {
+        border: 1px solid #e0e0e0;
+        border-radius: 8px;
+    }
+    
+    /* Expanders */
+    .streamlit-expanderHeader {
+        background-color: #fef9f5 !important;
+        border-left: 3px solid #f2650a !important;
+        border-radius: 4px !important;
+        font-family: 'Georgia', 'Times New Roman', serif !important;
+    }
+    
+    /* Success/Error messages */
+    .stSuccess {
+        background-color: #e8f5e9 !important;
+        border-left: 4px solid #4caf50 !important;
+    }
+    .stError {
+        background-color: #fef0f0 !important;
+        border-left: 4px solid #f44336 !important;
+    }
+    
+    /* Text inputs */
+    .stTextInput input, .stDateInput input {
+        border: 1px solid #ccc !important;
+        border-radius: 6px !important;
+        font-family: 'Georgia', 'Times New Roman', serif !important;
+    }
+    .stTextInput input:focus, .stDateInput input:focus {
+        border-color: #f2650a !important;
+        box-shadow: 0 0 0 2px rgba(242, 101, 10, 0.2) !important;
+    }
+    
+    /* Select boxes and multiselect */
+    .stSelectbox select, .stMultiSelect {
+        font-family: 'Georgia', 'Times New Roman', serif !important;
+    }
+</style>
+""", unsafe_allow_html=True)
+
+# ============================================
 # GOOGLE SHEETS SETUP
 # ============================================
 @st.cache_resource
@@ -48,47 +223,55 @@ if 'researcher_name' not in st.session_state:
 # LOGIN PAGE
 # ============================================
 def login_page():
-    st.title("Advanced Knowledge Research Consultancy")
-    st.subheader("Portal Login")
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        st.image(LOGO_URL, width=350)
+    
+    st.markdown("<h1 style='text-align: center; margin-top: -10px;'>Advanced Knowledge Research Consultancy</h1>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center; color: #666; font-size: 16px;'>Research Consultancy Portal</p>", unsafe_allow_html=True)
+    
+    st.divider()
+    
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        login_type = st.radio("Login as:", ["Researcher", "Admin"], horizontal=True)
 
-    login_type = st.radio("Login as:", ["Researcher", "Admin"])
+        if login_type == "Researcher":
+            username = st.text_input("Username")
+            password = st.text_input("Password", type="password")
 
-    if login_type == "Researcher":
-        username = st.text_input("Username")
-        password = st.text_input("Password", type="password")
+            if st.button("Login", use_container_width=True):
+                logins_df = load_data("Researcher Logins")
 
-        if st.button("Login"):
-            logins_df = load_data("Researcher Logins")
+                match = logins_df[(logins_df['Username'] == username) &
+                                (logins_df['Password'] == password) &
+                                (logins_df['Status'] == 'Active')]
 
-            match = logins_df[(logins_df['Username'] == username) &
-                            (logins_df['Password'] == password) &
-                            (logins_df['Status'] == 'Active')]
+                if len(match) > 0:
+                    st.session_state.logged_in = True
+                    st.session_state.user_type = "Researcher"
+                    st.session_state.researcher_name = match.iloc[0]['Researcher Name']
+                    st.success("Login successful!")
+                    st.rerun()
+                else:
+                    st.error("Invalid credentials or account inactive.")
 
-            if len(match) > 0:
-                st.session_state.logged_in = True
-                st.session_state.user_type = "Researcher"
-                st.session_state.researcher_name = match.iloc[0]['Researcher Name']
-                st.success("Login successful!")
-                st.rerun()
-            else:
-                st.error("Invalid credentials or account inactive.")
+        else:
+            admin_password = st.text_input("Admin Password", type="password")
 
-    else:
-        admin_password = st.text_input("Admin Password", type="password")
-
-        if st.button("Login"):
-            try:
-                correct_password = st.secrets["admin_password"]
-            except:
-                correct_password = "admin123"
-            
-            if admin_password == correct_password:
-                st.session_state.logged_in = True
-                st.session_state.user_type = "Admin"
-                st.success("Admin login successful!")
-                st.rerun()
-            else:
-                st.error("Invalid admin password.")
+            if st.button("Login", use_container_width=True):
+                try:
+                    correct_password = st.secrets["admin_password"]
+                except:
+                    correct_password = "admin123"
+                
+                if admin_password == correct_password:
+                    st.session_state.logged_in = True
+                    st.session_state.user_type = "Admin"
+                    st.success("Admin login successful!")
+                    st.rerun()
+                else:
+                    st.error("Invalid admin password.")
 
 # ============================================
 # RESEARCHER DASHBOARD
@@ -151,11 +334,14 @@ def researcher_dashboard():
                         st.success("Task marked as completed!")
                         st.rerun()
 
-    if st.sidebar.button("Logout"):
-        st.session_state.logged_in = False
-        st.session_state.user_type = None
-        st.session_state.researcher_name = None
-        st.rerun()
+    with st.sidebar:
+        st.image(LOGO_URL, width=180)
+        st.markdown("---")
+        if st.button("🚪 Logout", use_container_width=True):
+            st.session_state.logged_in = False
+            st.session_state.user_type = None
+            st.session_state.researcher_name = None
+            st.rerun()
 
 # ============================================
 # ADMIN DASHBOARD
@@ -168,7 +354,7 @@ def admin_dashboard():
     payments_df = load_data("Project Payments Received")
     payouts_df = load_data("Researcher Payouts")
 
-    tab1, tab2, tab3 = st.tabs(["Projects Overview", "Financial Overview", "All Data"])
+    tab1, tab2, tab3 = st.tabs(["📊 Projects Overview", "💰 Financial Overview", "📋 All Data"])
 
     with tab1:
         st.subheader("Project Progress")
@@ -257,12 +443,15 @@ def admin_dashboard():
         st.dataframe(filtered_df, width='stretch')
 
         csv = filtered_df.to_csv(index=False)
-        st.download_button("Download as CSV", csv, "projects_export.csv", "text/csv")
+        st.download_button("📥 Download as CSV", csv, "projects_export.csv", "text/csv")
 
-    if st.sidebar.button("Logout"):
-        st.session_state.logged_in = False
-        st.session_state.user_type = None
-        st.rerun()
+    with st.sidebar:
+        st.image(LOGO_URL, width=180)
+        st.markdown("---")
+        if st.button("🚪 Logout", use_container_width=True):
+            st.session_state.logged_in = False
+            st.session_state.user_type = None
+            st.rerun()
 
 # ============================================
 # MAIN
