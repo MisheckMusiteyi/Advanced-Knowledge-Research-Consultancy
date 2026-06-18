@@ -13,11 +13,13 @@ def connect_to_sheets():
     scope = ["https://spreadsheets.google.com/feeds",
              "https://www.googleapis.com/auth/drive"]
     
-    # For Streamlit Cloud — read from secrets
+    # For Streamlit Cloud — read from secrets at top level
     try:
-        creds_dict = dict(st.secrets["gcp_service_account"])
+        creds_dict = dict(st.secrets)
+        # Remove non-credential keys from secrets
+        creds_dict.pop("admin_password", None)
         creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
-    except:
+    except Exception as e:
         # Fallback for local development
         creds = ServiceAccountCredentials.from_json_keyfile_name("credentials.json", scope)
     
@@ -49,7 +51,8 @@ if 'researcher_name' not in st.session_state:
 # LOGIN PAGE
 # ============================================
 def login_page():
-    st.title("Research Consultancy Portal")
+    st.title("Advanced Knowledge Research Consultancy")
+    st.subheader("Portal Login")
 
     login_type = st.radio("Login as:", ["Researcher", "Admin"])
 
@@ -60,7 +63,6 @@ def login_page():
         if st.button("Login"):
             logins_df = load_data("Researcher Logins")
 
-            # Check credentials
             match = logins_df[(logins_df['Email'] == email) &
                             (logins_df['Password'] == password) &
                             (logins_df['Active'] == 'Yes')]
@@ -74,11 +76,10 @@ def login_page():
             else:
                 st.error("Invalid credentials or account inactive.")
 
-    else:  # Admin
+    else:
         admin_password = st.text_input("Admin Password", type="password")
 
         if st.button("Login"):
-            # Try Streamlit secrets first, fallback to hardcoded
             try:
                 correct_password = st.secrets["admin_password"]
             except:
@@ -99,22 +100,18 @@ def researcher_dashboard():
     st.title(f"Welcome, {st.session_state.researcher_name}")
     st.subheader("Your Active Tasks")
 
-    # Load data
     projects_df = load_data("Projects")
 
-    # Filter for this researcher
     my_tasks = projects_df[projects_df['Researcher Assigned'] == st.session_state.researcher_name]
 
     if len(my_tasks) == 0:
         st.info("No tasks assigned yet.")
     else:
-        # Calculate days remaining
         today = date.today()
         my_tasks = my_tasks.copy()
         my_tasks['Deadline'] = pd.to_datetime(my_tasks['Deadline'])
         my_tasks['Days Remaining'] = (my_tasks['Deadline'] - pd.Timestamp(today)).dt.days
 
-        # Status color
         def status_color(row):
             if row['Status'] == 'Completed':
                 return '✅ Completed'
@@ -127,7 +124,6 @@ def researcher_dashboard():
 
         my_tasks['Status Display'] = my_tasks.apply(status_color, axis=1)
 
-        # KPIs
         col1, col2, col3 = st.columns(3)
         with col1:
             st.metric("Total Tasks", len(my_tasks))
@@ -140,7 +136,6 @@ def researcher_dashboard():
 
         st.divider()
 
-        # Display tasks
         for idx, task in my_tasks.iterrows():
             with st.expander(f"{task['Project Name']} - {task['Task Description']}"):
                 col1, col2 = st.columns(2)
@@ -152,16 +147,13 @@ def researcher_dashboard():
                     st.write(f"**Comments:** {task.get('Comments', 'None')}")
                     st.write(f"**Decision:** {task.get('Decision', 'Pending')}")
 
-                # Completion checkbox
                 if task['Status'] != 'Completed':
                     if st.button("✅ Mark as Completed", key=f"complete_{idx}"):
-                        # Find the row in the actual sheet (+2 for header and 0-index)
                         sheet_row = idx + 2
                         update_cell("Projects", sheet_row, 7, "Completed")
                         st.success("Task marked as completed!")
                         st.rerun()
 
-    # Logout
     if st.sidebar.button("Logout"):
         st.session_state.logged_in = False
         st.session_state.user_type = None
@@ -172,21 +164,18 @@ def researcher_dashboard():
 # ADMIN DASHBOARD
 # ============================================
 def admin_dashboard():
-    st.title("Admin Dashboard")
+    st.title("Admin Dashboard - Advanced Knowledge Research Consultancy")
 
-    # Load data
     projects_df = load_data("Projects")
     revenue_df = load_data("Project Revenue")
     payments_df = load_data("Project Payments Received")
     payouts_df = load_data("Researcher Payouts")
 
-    # Tabs
     tab1, tab2, tab3 = st.tabs(["Projects Overview", "Financial Overview", "All Data"])
 
     with tab1:
         st.subheader("Project Progress")
 
-        # KPIs
         col1, col2, col3, col4 = st.columns(4)
         with col1:
             total_projects = projects_df['Project Name'].nunique()
@@ -202,7 +191,6 @@ def admin_dashboard():
                                     (projects_df['Status'] != 'Completed')])
             st.metric("Overdue", overdue)
 
-        # Progress by project
         st.subheader("Completion by Project")
         project_progress = projects_df.groupby('Project Name').agg(
             Total_Tasks=('Task Description', 'count'),
@@ -210,8 +198,6 @@ def admin_dashboard():
         )
         project_progress['Completion %'] = (project_progress['Completed_Tasks'] / project_progress['Total_Tasks'] * 100).round(1)
         st.dataframe(project_progress, use_container_width=True)
-
-        # Bar chart
         st.bar_chart(project_progress['Completion %'])
 
     with tab2:
@@ -236,7 +222,6 @@ def admin_dashboard():
         with col2:
             st.metric("Researcher Payouts", f"${total_payouts:,.0f}")
 
-        # Per-project financials
         st.subheader("Per-Project Financials")
         project_finance = revenue_df.groupby('Project Name').agg(
             Invoiced=('Total Amount Billed', 'sum'),
@@ -256,7 +241,6 @@ def admin_dashboard():
     with tab3:
         st.subheader("All Projects & Tasks")
 
-        # Filters
         col1, col2, col3 = st.columns(3)
         with col1:
             project_filter = st.multiselect("Filter by Project", projects_df['Project Name'].unique())
@@ -275,11 +259,9 @@ def admin_dashboard():
 
         st.dataframe(filtered_df, use_container_width=True)
 
-        # Export
         csv = filtered_df.to_csv(index=False)
         st.download_button("Download as CSV", csv, "projects_export.csv", "text/csv")
 
-    # Logout
     if st.sidebar.button("Logout"):
         st.session_state.logged_in = False
         st.session_state.user_type = None
