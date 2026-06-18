@@ -62,7 +62,7 @@ def login_page():
 
             match = logins_df[(logins_df['Username'] == username) &
                             (logins_df['Password'] == password) &
-                            (logins_df['Active'] == 'Yes')]
+                            (logins_df['Status'] == 'Active')]
 
             if len(match) > 0:
                 st.session_state.logged_in = True
