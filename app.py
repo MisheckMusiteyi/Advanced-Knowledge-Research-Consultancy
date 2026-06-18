@@ -54,13 +54,13 @@ def login_page():
     login_type = st.radio("Login as:", ["Researcher", "Admin"])
 
     if login_type == "Researcher":
-        email = st.text_input("Email")
+        username = st.text_input("Username")
         password = st.text_input("Password", type="password")
 
         if st.button("Login"):
             logins_df = load_data("Researcher Logins")
 
-            match = logins_df[(logins_df['Email'] == email) &
+            match = logins_df[(logins_df['Username'] == username) &
                             (logins_df['Password'] == password) &
                             (logins_df['Active'] == 'Yes')]
 
@@ -194,7 +194,7 @@ def admin_dashboard():
             Completed_Tasks=('Status', lambda x: (x == 'Completed').sum())
         )
         project_progress['Completion %'] = (project_progress['Completed_Tasks'] / project_progress['Total_Tasks'] * 100).round(1)
-        st.dataframe(project_progress, use_container_width=True)
+        st.dataframe(project_progress, width='stretch')
         st.bar_chart(project_progress['Completion %'])
 
     with tab2:
@@ -233,7 +233,7 @@ def admin_dashboard():
         project_finance['Received'] = project_finance['Received'].fillna(0)
         project_finance['Balance'] = project_finance['Invoiced'] - project_finance['Received']
         
-        st.dataframe(project_finance, use_container_width=True)
+        st.dataframe(project_finance, width='stretch')
 
     with tab3:
         st.subheader("All Projects & Tasks")
@@ -254,7 +254,7 @@ def admin_dashboard():
         if status_filter:
             filtered_df = filtered_df[filtered_df['Status'].isin(status_filter)]
 
-        st.dataframe(filtered_df, use_container_width=True)
+        st.dataframe(filtered_df, width='stretch')
 
         csv = filtered_df.to_csv(index=False)
         st.download_button("Download as CSV", csv, "projects_export.csv", "text/csv")
