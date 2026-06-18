@@ -6,6 +6,7 @@ import json
 import base64
 from io import BytesIO
 from datetime import datetime, date
+from PIL import Image
 
 # ============================================
 # PAGE CONFIGURATION - MUST BE FIRST
@@ -312,6 +313,11 @@ def save_profile(username, display_name, photo_b64="", image_type="image/png"):
     sheet = client.open("Advanced Knowledge Research Consultancy").worksheet("Researcher Profiles")
     records = sheet.get_all_records()
     
+    # If photo is too large, skip storing it
+    if len(photo_b64) > 45000:
+        st.warning("⚠️ Image too large. Please use a smaller image (under 100KB).")
+        photo_b64 = ""
+    
     for idx, row in enumerate(records, start=2):
         if row["Username"] == username:
             sheet.update(f"B{idx}", display_name)
@@ -320,6 +326,21 @@ def save_profile(username, display_name, photo_b64="", image_type="image/png"):
             return
     
     sheet.append_row([username, display_name, photo_b64, image_type])
+
+def resize_image_for_storage(image_bytes):
+    """Resize image to fit within Google Sheets cell limits."""
+    img = Image.open(BytesIO(image_bytes))
+    
+    if img.mode in ('RGBA', 'P'):
+        img = img.convert('RGB')
+    
+    img.thumbnail((300, 300), Image.LANCZOS)
+    
+    buffer = BytesIO()
+    img.save(buffer, format='JPEG', quality=60, optimize=True)
+    buffer.seek(0)
+    
+    return buffer.getvalue()
 
 def display_profile_image(photo_b64=None, image_type="image/png"):
     """Display the profile image in a circular format."""
@@ -378,8 +399,9 @@ def profile_settings_dialog(display_name, profile):
             image_type = profile.get("Image Type", "image/png")
             
             if new_photo:
-                image_type = new_photo.type
-                photo_b64 = base64.b64encode(new_photo.read()).decode()
+                compressed_bytes = resize_image_for_storage(new_photo.getvalue())
+                image_type = "image/jpeg"
+                photo_b64 = base64.b64encode(compressed_bytes).decode()
             
             save_profile(st.session_state.username, new_name, photo_b64, image_type)
             st.success("Profile updated successfully!")
