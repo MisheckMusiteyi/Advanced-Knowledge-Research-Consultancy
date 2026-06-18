@@ -144,31 +144,67 @@ st.markdown("""
         border-radius: 8px;
     }
     
-    /* Expanders - FIXED */
-    .streamlit-expanderHeader {
+    /* ============================================
+       EXPANDER FIX
+       Streamlit's expander header is a flex row that
+       contains an icon (the arrow/chevron) and a text
+       label as separate children. Targeting the old
+       ".streamlit-expanderHeader" class (and especially
+       overriding its inner <p> margins) breaks that flex
+       layout in current Streamlit versions and causes the
+       arrow icon to render on top of the label text.
+
+       Fix: use the stable data-testid hooks, keep the
+       header itself a flex row with proper gap/alignment,
+       and only style the text node - never touch the icon
+       element's box model.
+       ============================================ */
+    [data-testid="stExpander"] {
+        border: 1px solid #f0f0f0 !important;
+        border-radius: 8px !important;
+        background-color: #ffffff !important;
+        overflow: hidden;
+    }
+
+    [data-testid="stExpanderToggleIcon"] {
+        /* Let the icon size itself naturally; do not force
+           width/height/margins here or it can collide with
+           the label text in some Streamlit versions. */
+        flex-shrink: 0;
+        color: #f2650a !important;
+    }
+
+    [data-testid="stExpander"] summary {
         background-color: #fef9f5 !important;
         border-left: 3px solid #f2650a !important;
-        border-radius: 4px !important;
-        font-family: 'Georgia', 'Times New Roman', serif !important;
+        display: flex !important;
+        align-items: center !important;
+        gap: 10px !important;
         padding: 12px 16px !important;
+        list-style: none !important;
+    }
+
+    /* Remove default <details> marker so it can't double up
+       with the custom toggle icon Streamlit renders */
+    [data-testid="stExpander"] summary::marker,
+    [data-testid="stExpander"] summary::-webkit-details-marker {
+        display: none !important;
+        content: none !important;
+    }
+
+    [data-testid="stExpander"] summary span,
+    [data-testid="stExpander"] summary p {
+        font-family: 'Georgia', 'Times New Roman', serif !important;
         font-size: 16px !important;
         color: #1a1a1a !important;
         font-weight: 600 !important;
-    }
-    
-    /* Hide the default expander arrow text overlap */
-    .streamlit-expanderHeader p {
-        font-weight: 600 !important;
-        color: #1a1a1a !important;
         margin: 0 !important;
+        line-height: 1.4 !important;
     }
-    
-    /* Fix expander content area */
-    .streamlit-expanderContent {
+
+    [data-testid="stExpanderDetails"] {
         background-color: #ffffff !important;
-        border: 1px solid #f0f0f0 !important;
-        border-top: none !important;
-        border-radius: 0 0 8px 8px !important;
+        border-top: 1px solid #f0f0f0 !important;
         padding: 16px !important;
     }
     
@@ -198,8 +234,9 @@ st.markdown("""
         font-family: 'Georgia', 'Times New Roman', serif !important;
     }
     
-    /* Fix paragraph spacing in expanders */
-    .stMarkdown p {
+    /* Fix paragraph spacing - scoped so it doesn't touch
+       expander internals (which are handled above) */
+    [data-testid="stExpanderDetails"] .stMarkdown p {
         margin-bottom: 8px !important;
     }
 </style>
