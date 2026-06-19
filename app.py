@@ -126,111 +126,23 @@ st.markdown("""
         background-color: #f2650a !important;
     }
 
-    /* ---- Sidebar collapse/expand toggle button ----
-       The ligature text "keyboard_double_arrow_left" leaks
-       as a bare text node directly inside the button element,
-       not inside a child span — so targeting span/svg alone
-       doesn't suppress it. Fix: set color:transparent and
-       font-size:0 on the button itself to kill bare text nodes,
-       then use ::after (not ::before, which the button may
-       already use internally) to draw a pure-CSS arrow that
-       renders on top of everything regardless. */
-    [data-testid="stSidebarCollapseButton"] button,
-    [data-testid="stSidebarCollapseButton"] {
-        background-color: #f2650a !important;
-        border-radius: 50% !important;
-        width: 2rem !important;
-        height: 2rem !important;
-        min-width: 2rem !important;
-        display: flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.5) !important;
-        border: none !important;
-        position: relative !important;
-        overflow: hidden !important;
-        /* Kill any bare text node that is a direct child */
-        color: transparent !important;
-        font-size: 0 !important;
-        line-height: 0 !important;
-    }
-    [data-testid="stSidebarCollapseButton"] button:hover,
-    [data-testid="stSidebarCollapseButton"]:hover {
-        background-color: #d45508 !important;
-    }
-    /* Also kill child spans and SVGs */
-    [data-testid="stSidebarCollapseButton"] button span,
-    [data-testid="stSidebarCollapseButton"] button svg,
-    [data-testid="stSidebarCollapseButton"] span,
-    [data-testid="stSidebarCollapseButton"] svg {
-        font-size: 0 !important;
-        line-height: 0 !important;
-        color: transparent !important;
-        fill: transparent !important;
-        stroke: transparent !important;
+    /* ---- Sidebar collapse button: hide entirely ----
+       All attempts to style/suppress the ligature text
+       "keyboard_double_arrow_right" via CSS have failed
+       because it is a bare text node (not a span/svg child)
+       and Streamlit's CSP blocks injected JS.
+       Solution: hide the entire toggle button element so
+       nothing renders there at all. Users can still resize
+       the sidebar by dragging its edge. */
+    [data-testid="stSidebarCollapseButton"],
+    [data-testid="stSidebarCollapsedControl"] {
+        display: none !important;
+        visibility: hidden !important;
         width: 0 !important;
         height: 0 !important;
         overflow: hidden !important;
-        display: block !important;
-    }
-    /* CSS-only left chevron via ::after so it always sits on top */
-    [data-testid="stSidebarCollapseButton"] button::after,
-    [data-testid="stSidebarCollapseButton"]::after {
-        content: '' !important;
         position: absolute !important;
-        top: 50% !important;
-        left: 55% !important;
-        transform: translate(-50%, -50%) rotate(135deg) !important;
-        width: 7px !important;
-        height: 7px !important;
-        border-top: 2.5px solid white !important;
-        border-right: 2.5px solid white !important;
-        border-bottom: none !important;
-        border-left: none !important;
-        display: block !important;
-        z-index: 10 !important;
-    }
-    /* Re-open button (outside sidebar when collapsed) */
-    [data-testid="stSidebarCollapsedControl"] button {
-        background-color: #f2650a !important;
-        border-radius: 50% !important;
-        width: 2rem !important;
-        height: 2rem !important;
-        min-width: 2rem !important;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.3) !important;
-        border: none !important;
-        position: relative !important;
-        overflow: hidden !important;
-        color: transparent !important;
-        font-size: 0 !important;
-        line-height: 0 !important;
-    }
-    [data-testid="stSidebarCollapsedControl"] button span,
-    [data-testid="stSidebarCollapsedControl"] button svg {
-        font-size: 0 !important;
-        line-height: 0 !important;
-        color: transparent !important;
-        fill: transparent !important;
-        stroke: transparent !important;
-        width: 0 !important;
-        height: 0 !important;
-        overflow: hidden !important;
-    }
-    /* Arrow points right when sidebar is collapsed */
-    [data-testid="stSidebarCollapsedControl"] button::after {
-        content: '' !important;
-        position: absolute !important;
-        top: 50% !important;
-        left: 45% !important;
-        transform: translate(-50%, -50%) rotate(-45deg) !important;
-        width: 7px !important;
-        height: 7px !important;
-        border-top: 2.5px solid white !important;
-        border-right: 2.5px solid white !important;
-        border-bottom: none !important;
-        border-left: none !important;
-        display: block !important;
-        z-index: 10 !important;
+        pointer-events: none !important;
     }
 
     /* Radio buttons */
@@ -416,55 +328,6 @@ st.markdown("""
         margin: 10px 0;
     }
 </style>
-""", unsafe_allow_html=True)
-
-# ============================================
-# JS: REMOVE ICON LIGATURE TEXT FROM BUTTONS
-# CSS cannot target bare text nodes — only JavaScript can.
-# This script runs on load and on every Streamlit re-render,
-# finding all text nodes inside the sidebar toggle buttons
-# and removing them so only the CSS ::after arrow remains.
-# ============================================
-st.markdown("""
-<script>
-(function patchSidebarButtons() {
-    function removeTextNodes(selector) {
-        const els = document.querySelectorAll(selector);
-        els.forEach(el => {
-            // Walk every child node; remove TEXT_NODEs directly
-            el.childNodes.forEach(node => {
-                if (node.nodeType === Node.TEXT_NODE) {
-                    node.remove();
-                }
-            });
-            // Also recurse into buttons inside the container
-            el.querySelectorAll('button').forEach(btn => {
-                btn.childNodes.forEach(node => {
-                    if (node.nodeType === Node.TEXT_NODE) {
-                        node.remove();
-                    }
-                });
-            });
-        });
-    }
-
-    function run() {
-        removeTextNodes('[data-testid="stSidebarCollapseButton"]');
-        removeTextNodes('[data-testid="stSidebarCollapsedControl"]');
-    }
-
-    // Run immediately if DOM is ready
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', run);
-    } else {
-        run();
-    }
-
-    // Re-run after Streamlit re-renders (it rebuilds the DOM)
-    const observer = new MutationObserver(run);
-    observer.observe(document.body, { childList: true, subtree: true });
-})();
-</script>
 """, unsafe_allow_html=True)
 
 # ============================================
