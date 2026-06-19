@@ -13,7 +13,6 @@ from PIL import Image
 # ============================================
 st.set_page_config(
     page_title="AKRC Portal",
-    page_icon="🔬",
     layout="wide"
 )
 
@@ -375,7 +374,7 @@ def display_profile_image(photo_b64=None, image_type="image/png"):
                 font-size:50px;
                 font-weight:bold;
             ">
-            👤
+            
             </div>
             """,
             unsafe_allow_html=True
@@ -384,7 +383,7 @@ def display_profile_image(photo_b64=None, image_type="image/png"):
 # ============================================
 # DIALOG: Profile Settings
 # ============================================
-@st.dialog("⚙️ Profile Settings")
+@st.dialog(" Profile Settings")
 def profile_settings_dialog(display_name, profile):
     """Profile settings popup dialog."""
     new_name = st.text_input("Display Name", value=display_name)
@@ -396,7 +395,7 @@ def profile_settings_dialog(display_name, profile):
     
     col1, col2 = st.columns(2)
     with col1:
-        if st.button("💾 Save Profile", use_container_width=True):
+        if st.button(" Save Profile", use_container_width=True):
             photo_b64 = profile["Profile Photo"]
             image_type = profile.get("Image Type", "image/png")
             
@@ -410,7 +409,7 @@ def profile_settings_dialog(display_name, profile):
             st.rerun()
     
     with col2:
-        if st.button("❌ Cancel", use_container_width=True):
+        if st.button(" Cancel", use_container_width=True):
             st.rerun()
 
 # ============================================
@@ -433,7 +432,7 @@ if 'profile_image' not in st.session_state:
 def login_page():
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
-        st.image(LOGO_URL, width=350)
+        st.image(LOGO_URL, width=500)
     
     st.markdown("<h1 style='text-align: center; margin-top: -10px;'>Advanced Knowledge Research Consultancy</h1>", unsafe_allow_html=True)
     st.markdown("<p style='text-align: center; color: #666; font-size: 16px;'>Research Consultancy Portal</p>", unsafe_allow_html=True)
@@ -570,13 +569,13 @@ def researcher_dashboard():
         st.markdown("---")
         
         # Profile Settings button
-        if st.button("⚙️ Profile Settings", use_container_width=True):
+        if st.button(" Profile Settings", use_container_width=True):
             profile_settings_dialog(display_name, profile)
         
         st.markdown("---")
         
         # Logout button
-        if st.button("🚪 Logout", use_container_width=True):
+        if st.button(" Logout", use_container_width=True):
             st.session_state.logged_in = False
             st.session_state.user_type = None
             st.session_state.researcher_name = None
@@ -595,7 +594,7 @@ def admin_dashboard():
     payments_df = load_data("Project Payments Received")
     payouts_df = load_data("Researcher Payouts")
 
-    tab1, tab2, tab3 = st.tabs(["📊 Projects Overview", "💰 Financial Overview", "📋 All Data"])
+    tab1, tab2, tab3 = st.tabs([" Projects Overview", " Financial Overview", " All Data"])
 
     with tab1:
         st.subheader("Project Progress")
@@ -684,13 +683,13 @@ def admin_dashboard():
         st.dataframe(filtered_df, width='stretch')
 
         csv = filtered_df.to_csv(index=False)
-        st.download_button("📥 Download as CSV", csv, "projects_export.csv", "text/csv")
+        st.download_button(" Download as CSV", csv, "projects_export.csv", "text/csv")
 
     with st.sidebar:
         st.markdown("## AKRC Portal")
         st.markdown("---")
         
-        if st.button("🚪 Logout", use_container_width=True):
+        if st.button("Logout", use_container_width=True):
             st.session_state.logged_in = False
             st.session_state.user_type = None
             st.rerun()
