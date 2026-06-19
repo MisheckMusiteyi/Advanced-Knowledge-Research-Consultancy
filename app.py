@@ -419,6 +419,55 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ============================================
+# JS: REMOVE ICON LIGATURE TEXT FROM BUTTONS
+# CSS cannot target bare text nodes — only JavaScript can.
+# This script runs on load and on every Streamlit re-render,
+# finding all text nodes inside the sidebar toggle buttons
+# and removing them so only the CSS ::after arrow remains.
+# ============================================
+st.markdown("""
+<script>
+(function patchSidebarButtons() {
+    function removeTextNodes(selector) {
+        const els = document.querySelectorAll(selector);
+        els.forEach(el => {
+            // Walk every child node; remove TEXT_NODEs directly
+            el.childNodes.forEach(node => {
+                if (node.nodeType === Node.TEXT_NODE) {
+                    node.remove();
+                }
+            });
+            // Also recurse into buttons inside the container
+            el.querySelectorAll('button').forEach(btn => {
+                btn.childNodes.forEach(node => {
+                    if (node.nodeType === Node.TEXT_NODE) {
+                        node.remove();
+                    }
+                });
+            });
+        });
+    }
+
+    function run() {
+        removeTextNodes('[data-testid="stSidebarCollapseButton"]');
+        removeTextNodes('[data-testid="stSidebarCollapsedControl"]');
+    }
+
+    // Run immediately if DOM is ready
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', run);
+    } else {
+        run();
+    }
+
+    // Re-run after Streamlit re-renders (it rebuilds the DOM)
+    const observer = new MutationObserver(run);
+    observer.observe(document.body, { childList: true, subtree: true });
+})();
+</script>
+""", unsafe_allow_html=True)
+
+# ============================================
 # GOOGLE SHEETS SETUP
 # ============================================
 @st.cache_resource
