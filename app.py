@@ -359,7 +359,7 @@ def save_profile(username, display_name, photo_b64="", image_type="image/jpeg"):
     records = sheet.get_all_records()
 
     if len(photo_b64) > 45000:
-        st.warning("⚠️ Image too large. Please use a smaller image (under 100KB).")
+        st.warning(" Image too large. Please use a smaller image (under 100KB).")
         photo_b64 = ""
 
     for idx, row in enumerate(records, start=2):
@@ -577,13 +577,13 @@ def researcher_dashboard():
 
         def status_color(row):
             if row['Status'] == 'Completed':
-                return '✅ Completed'
+                return ' Completed'
             elif row['Days Remaining'] < 0:
-                return '🔴 Overdue'
+                return ' Overdue'
             elif row['Days Remaining'] <= 3:
-                return '🟡 Due Soon'
+                return ' Due Soon'
             else:
-                return '🟢 In Progress'
+                return ' In Progress'
 
         my_tasks['Status Display'] = my_tasks.apply(status_color, axis=1)
         
@@ -609,7 +609,7 @@ def researcher_dashboard():
         st.divider()
 
         for idx, task in my_tasks.iterrows():
-            payout_text = f" | 💰 ${task['Payout']:,.0f}" if task['Payout'] > 0 else ""
+            payout_text = f" |  ${task['Payout']:,.0f}" if task['Payout'] > 0 else ""
             with st.expander(f"{task['Project Name']} - {task['Task Name/Description']}{payout_text}"):
                 col1, col2 = st.columns(2)
                 with col1:
@@ -620,10 +620,10 @@ def researcher_dashboard():
                     st.write(f"**Comments:** {task.get('Comments', 'None')}")
                     st.write(f"**Decision:** {task.get('Decision', 'Pending')}")
                     if task['Payout'] > 0:
-                        st.write(f"**Payout (filtered period):** 💰 ${task['Payout']:,.0f}")
+                        st.write(f"**Payout (filtered period):**  ${task['Payout']:,.0f}")
 
                 if task['Status'] != 'Completed':
-                    if st.button("✅ Mark as Completed", key=f"complete_{idx}"):
+                    if st.button(" Mark as Completed", key=f"complete_{idx}"):
                         sheet_row = idx + 2
                         update_cell("Projects", sheet_row, 7, "Completed")
                         st.success("Task marked as completed!")
@@ -643,7 +643,7 @@ def researcher_dashboard():
         
         st.markdown(
             f'<div style="text-align:center;padding:8px 0;">'
-            f'<p style="color:#f2650a;font-weight:700;font-size:14px;margin:0;">💰 Overall Payouts</p>'
+            f'<p style="color:#f2650a;font-weight:700;font-size:14px;margin:0;"> Overall Payouts</p>'
             f'<p style="color:white;font-weight:700;font-size:22px;margin:0;">${overall_payout:,.0f}</p>'
             f'<p style="color:#aaaaaa;font-size:10px;margin:2px 0 0 0;">Lifetime total</p>'
             f'</div>',
@@ -652,12 +652,12 @@ def researcher_dashboard():
         
         st.markdown('<hr class="sidebar-divider">', unsafe_allow_html=True)
 
-        if st.button("⚙️ Profile Settings", use_container_width=True):
+        if st.button(" Profile Settings", use_container_width=True):
             profile_settings_dialog(display_name, profile)
 
         st.markdown('<hr class="sidebar-divider">', unsafe_allow_html=True)
 
-        if st.button("🚪 Logout", use_container_width=True):
+        if st.button(" Logout", use_container_width=True):
             st.session_state.logged_in = False
             st.session_state.user_type = None
             st.session_state.researcher_name = None
@@ -675,7 +675,7 @@ def admin_dashboard():
     payments_df = load_data("Project Payments Received")
     payouts_df = load_data("Researcher Payouts")
 
-    tab1, tab2, tab3 = st.tabs(["📊 Projects Overview", "💰 Financial Overview", "📋 All Data"])
+    tab1, tab2, tab3 = st.tabs([" Projects Overview", " Financial Overview", " All Data"])
 
     with tab1:
         st.subheader("Project Progress")
@@ -757,7 +757,7 @@ def admin_dashboard():
 
         st.dataframe(filtered_df, width='stretch')
         csv = filtered_df.to_csv(index=False)
-        st.download_button("📥 Download as CSV", csv, "projects_export.csv", "text/csv")
+        st.download_button(" Download as CSV", csv, "projects_export.csv", "text/csv")
 
     with st.sidebar:
         st.markdown(
@@ -766,7 +766,7 @@ def admin_dashboard():
             unsafe_allow_html=True
         )
         st.markdown('<hr class="sidebar-divider">', unsafe_allow_html=True)
-        if st.button("🚪 Logout", use_container_width=True):
+        if st.button(" Logout", use_container_width=True):
             st.session_state.logged_in = False
             st.session_state.user_type = None
             st.rerun()
