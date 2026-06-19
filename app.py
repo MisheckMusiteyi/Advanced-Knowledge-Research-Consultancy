@@ -838,7 +838,7 @@ def admin_dashboard():
             st.metric("Total Received", f"${total_received:,.0f}")
         with col3:
             st.metric("Balance Owing", f"${total_invoiced - total_received:,.0f}")
-        col1, col2 = st.columns(2)
+        col1, col2, col3 = st.columns(3)
         with col1:
             st.metric("Company Retained", f"${total_retained:,.0f}")
         with col2:
