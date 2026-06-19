@@ -127,13 +127,14 @@ st.markdown("""
     }
 
     /* ---- Sidebar collapse/expand toggle button ----
-       Root cause: Streamlit renders the chevron inside this
-       button as a Material Symbols ligature span (text content
-       = "keyboard_double_arrow_left"). If the icon font fails
-       to load the raw text appears. Fix: hide ALL child content
-       of the button (SVG, spans, any text nodes) then draw a
-       clean CSS arrow with ::before so it can never depend on
-       a font asset. */
+       The ligature text "keyboard_double_arrow_left" leaks
+       as a bare text node directly inside the button element,
+       not inside a child span — so targeting span/svg alone
+       doesn't suppress it. Fix: set color:transparent and
+       font-size:0 on the button itself to kill bare text nodes,
+       then use ::after (not ::before, which the button may
+       already use internally) to draw a pure-CSS arrow that
+       renders on top of everything regardless. */
     [data-testid="stSidebarCollapseButton"] button,
     [data-testid="stSidebarCollapseButton"] {
         background-color: #f2650a !important;
@@ -148,12 +149,16 @@ st.markdown("""
         border: none !important;
         position: relative !important;
         overflow: hidden !important;
+        /* Kill any bare text node that is a direct child */
+        color: transparent !important;
+        font-size: 0 !important;
+        line-height: 0 !important;
     }
     [data-testid="stSidebarCollapseButton"] button:hover,
     [data-testid="stSidebarCollapseButton"]:hover {
         background-color: #d45508 !important;
     }
-    /* Kill the ligature text span AND any SVG inside the button */
+    /* Also kill child spans and SVGs */
     [data-testid="stSidebarCollapseButton"] button span,
     [data-testid="stSidebarCollapseButton"] button svg,
     [data-testid="stSidebarCollapseButton"] span,
@@ -168,9 +173,9 @@ st.markdown("""
         overflow: hidden !important;
         display: block !important;
     }
-    /* Draw a CSS-only left-pointing arrow (sidebar is open → arrow points left) */
-    [data-testid="stSidebarCollapseButton"] button::before,
-    [data-testid="stSidebarCollapseButton"]::before {
+    /* CSS-only left chevron via ::after so it always sits on top */
+    [data-testid="stSidebarCollapseButton"] button::after,
+    [data-testid="stSidebarCollapseButton"]::after {
         content: '' !important;
         position: absolute !important;
         top: 50% !important;
@@ -178,13 +183,14 @@ st.markdown("""
         transform: translate(-50%, -50%) rotate(135deg) !important;
         width: 7px !important;
         height: 7px !important;
-        border-top: 2px solid white !important;
-        border-right: 2px solid white !important;
+        border-top: 2.5px solid white !important;
+        border-right: 2.5px solid white !important;
         border-bottom: none !important;
         border-left: none !important;
         display: block !important;
+        z-index: 10 !important;
     }
-    /* Re-open button (sits outside sidebar when it is collapsed) */
+    /* Re-open button (outside sidebar when collapsed) */
     [data-testid="stSidebarCollapsedControl"] button {
         background-color: #f2650a !important;
         border-radius: 50% !important;
@@ -195,6 +201,9 @@ st.markdown("""
         border: none !important;
         position: relative !important;
         overflow: hidden !important;
+        color: transparent !important;
+        font-size: 0 !important;
+        line-height: 0 !important;
     }
     [data-testid="stSidebarCollapsedControl"] button span,
     [data-testid="stSidebarCollapsedControl"] button svg {
@@ -208,7 +217,7 @@ st.markdown("""
         overflow: hidden !important;
     }
     /* Arrow points right when sidebar is collapsed */
-    [data-testid="stSidebarCollapsedControl"] button::before {
+    [data-testid="stSidebarCollapsedControl"] button::after {
         content: '' !important;
         position: absolute !important;
         top: 50% !important;
@@ -216,11 +225,12 @@ st.markdown("""
         transform: translate(-50%, -50%) rotate(-45deg) !important;
         width: 7px !important;
         height: 7px !important;
-        border-top: 2px solid white !important;
-        border-right: 2px solid white !important;
+        border-top: 2.5px solid white !important;
+        border-right: 2.5px solid white !important;
         border-bottom: none !important;
         border-left: none !important;
         display: block !important;
+        z-index: 10 !important;
     }
 
     /* Radio buttons */
@@ -566,22 +576,21 @@ if 'username' not in st.session_state:
 # LOGIN PAGE
 # ============================================
 def login_page():
-    col1, col2, col3 = st.columns([1, 2, 1])
-    with col2:
-        # Logo: 100% width of this column so it matches the
-        # span of the company name heading below it exactly.
-        # object-fit:contain keeps it fully visible without
-        # distortion; max-height caps the vertical space.
-        st.markdown(
-            f'''<div style="text-align:center; margin-bottom:10px;">
-                  <img src="{LOGO_URL}"
-                       style="width:100%;
-                              max-height:180px;
-                              object-fit:contain;
-                              display:inline-block;" />
-                </div>''',
-            unsafe_allow_html=True
-        )
+    # Logo rendered at full page width, centred, matching the
+    # span of the h1 heading that follows it. We step outside
+    # the column grid here so both elements share the same width.
+    st.markdown(
+        f'''<div style="text-align:center; margin-bottom:6px; margin-top:1rem;">
+              <img src="{LOGO_URL}"
+                   style="width:60%;
+                          max-width:720px;
+                          min-width:320px;
+                          max-height:200px;
+                          object-fit:contain;
+                          display:inline-block;" />
+            </div>''',
+        unsafe_allow_html=True
+    )
 
     st.markdown(
         "<h1 style='text-align:center;margin-top:0;'>Advanced Knowledge Research Consultancy</h1>",
