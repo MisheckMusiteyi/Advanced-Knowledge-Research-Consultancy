@@ -108,12 +108,6 @@ st.markdown("""
     
     /* ============================================
        SIDEBAR + COLLAPSE BUTTON FIX
-       The sidebar background is #1a1a1a (near-black).
-       Streamlit's collapse/expand toggle button sits
-       at the edge of the sidebar and inherits a dark
-       icon colour, making it invisible against the dark
-       background. We target it specifically so it is
-       always visible regardless of theme.
        ============================================ */
     [data-testid="stSidebar"] {
         background-color: #1a1a1a !important;
@@ -126,14 +120,6 @@ st.markdown("""
         background-color: #f2650a !important;
     }
 
-    /* ---- Sidebar collapse button: hide entirely ----
-       All attempts to style/suppress the ligature text
-       "keyboard_double_arrow_right" via CSS have failed
-       because it is a bare text node (not a span/svg child)
-       and Streamlit's CSP blocks injected JS.
-       Solution: hide the entire toggle button element so
-       nothing renders there at all. Users can still resize
-       the sidebar by dragging its edge. */
     [data-testid="stSidebarCollapseButton"],
     [data-testid="stSidebarCollapsedControl"] {
         display: none !important;
@@ -196,14 +182,12 @@ st.markdown("""
         cursor: pointer !important;
     }
 
-    /* Remove default markers */
     [data-testid="stExpander"] summary::marker,
     [data-testid="stExpander"] summary::-webkit-details-marker {
         display: none !important;
         content: none !important;
     }
 
-    /* Hide icon font text & SVG that causes the overlap */
     [data-testid="stExpander"] summary [data-testid="stExpanderToggleIcon"],
     [data-testid="stExpander"] summary [data-testid="stIconMaterial"],
     [data-testid="stExpander"] summary .material-icons {
@@ -219,7 +203,6 @@ st.markdown("""
         display: none !important;
     }
 
-    /* Pure CSS arrow - no font dependency */
     [data-testid="stExpander"] summary::before {
         content: '▶' !important;
         display: inline-block !important;
@@ -282,13 +265,6 @@ st.markdown("""
 
     /* ============================================
        FILE UPLOADER FIX
-       Streamlit's file uploader browse button also uses
-       a Material Symbols icon span. When the font fails
-       to load the ligature text ("upload") appears as
-       visible text on top of the button label, producing
-       the double "uploadUpload" effect.
-       Fix: zero out the icon span inside the button only,
-       keeping the button label text intact.
        ============================================ */
     [data-testid="stFileUploaderDropzone"] button span[data-testid="stIconMaterial"],
     [data-testid="stFileUploaderDropzone"] button span.material-symbols-rounded,
@@ -400,7 +376,6 @@ def resize_image_for_storage(image_bytes):
     img = Image.open(BytesIO(image_bytes))
     if img.mode in ('RGBA', 'P'):
         img = img.convert('RGB')
-    # Square crop from center
     w, h = img.size
     side = min(w, h)
     img = img.crop(((w - side) // 2, (h - side) // 2,
@@ -488,9 +463,6 @@ if 'username' not in st.session_state:
 # LOGIN PAGE
 # ============================================
 def login_page():
-    # Logo rendered at full page width, centred, matching the
-    # span of the h1 heading that follows it. We step outside
-    # the column grid here so both elements share the same width.
     st.markdown(
         f'''<div style="text-align:center; margin-bottom:6px; margin-top:1rem;">
               <img src="{LOGO_URL}"
@@ -567,7 +539,13 @@ def researcher_dashboard():
     st.subheader("Your Active Tasks")
 
     projects_df = load_data("Projects")
+    payouts_df = load_data("Researcher Payouts")
+    
     my_tasks = projects_df[projects_df['Researcher Assigned'] == st.session_state.researcher_name]
+    
+    # Get this researcher's payouts
+    my_payouts = payouts_df[payouts_df['Researcher Name'] == st.session_state.researcher_name]
+    total_payout = my_payouts['Payout Amount'].sum()
 
     if len(my_tasks) == 0:
         st.info("No tasks assigned yet.")
@@ -588,8 +566,16 @@ def researcher_dashboard():
                 return '🟢 In Progress'
 
         my_tasks['Status Display'] = my_tasks.apply(status_color, axis=1)
+        
+        # Add payout info to each task
+        def get_project_payout(project_name):
+            project_payouts = my_payouts[my_payouts['Project Name'] == project_name]
+            return project_payouts['Payout Amount'].sum()
+        
+        my_tasks['Payout'] = my_tasks['Project Name'].apply(get_project_payout)
 
-        col1, col2, col3 = st.columns(3)
+        # KPI row
+        col1, col2, col3, col4 = st.columns(4)
         with col1:
             st.metric("Total Tasks", len(my_tasks))
         with col2:
@@ -600,11 +586,14 @@ def researcher_dashboard():
                 (my_tasks['Days Remaining'] < 0) & (my_tasks['Status'] != 'Completed')
             ])
             st.metric("Overdue", overdue_count)
+        with col4:
+            st.metric("Total Payouts", f"${total_payout:,.0f}")
 
         st.divider()
 
         for idx, task in my_tasks.iterrows():
-            with st.expander(f"{task['Project Name']} - {task['Task Name/Description']}"):
+            payout_text = f" | 💰 ${task['Payout']:,.0f}" if task['Payout'] > 0 else ""
+            with st.expander(f"{task['Project Name']} - {task['Task Name/Description']}{payout_text}"):
                 col1, col2 = st.columns(2)
                 with col1:
                     st.write(f"**Deadline:** {task['Project Deadline'].strftime('%Y-%m-%d')}")
@@ -613,6 +602,8 @@ def researcher_dashboard():
                 with col2:
                     st.write(f"**Comments:** {task.get('Comments', 'None')}")
                     st.write(f"**Decision:** {task.get('Decision', 'Pending')}")
+                    if task['Payout'] > 0:
+                        st.write(f"**Payout:** 💰 ${task['Payout']:,.0f}")
 
                 if task['Status'] != 'Completed':
                     if st.button("✅ Mark as Completed", key=f"complete_{idx}"):
@@ -623,7 +614,6 @@ def researcher_dashboard():
 
     # ---- SIDEBAR ----
     with st.sidebar:
-        # Circular profile avatar + researcher name
         st.markdown(
             sidebar_avatar_html(
                 profile["Profile Photo"],
@@ -633,6 +623,17 @@ def researcher_dashboard():
             ),
             unsafe_allow_html=True
         )
+        
+        # Quick payout summary in sidebar
+        if total_payout > 0:
+            st.markdown(
+                f'<div style="text-align:center;padding:8px 0;">'
+                f'<p style="color:#f2650a;font-weight:700;font-size:16px;margin:0;">💰 Total Payouts</p>'
+                f'<p style="color:white;font-weight:700;font-size:22px;margin:0;">${total_payout:,.0f}</p>'
+                f'</div>',
+                unsafe_allow_html=True
+            )
+        
         st.markdown('<hr class="sidebar-divider">', unsafe_allow_html=True)
 
         if st.button("⚙️ Profile Settings", use_container_width=True):
