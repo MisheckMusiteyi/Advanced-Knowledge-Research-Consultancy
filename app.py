@@ -545,7 +545,26 @@ def researcher_dashboard():
     
     # Get this researcher's payouts
     my_payouts = payouts_df[payouts_df['Researcher Name'] == st.session_state.researcher_name]
-    total_payout = my_payouts['Payout Amount'].sum()
+    
+    # Overall lifetime payout (unfiltered)
+    overall_payout = my_payouts['Payout Amount'].sum()
+    
+    # Date-filtered payouts
+    my_payouts['Date'] = pd.to_datetime(my_payouts['Date'])
+    
+    # Date filter UI
+    col_date1, col_date2 = st.columns(2)
+    with col_date1:
+        start_date = st.date_input("Payouts From", value=date.today().replace(day=1))
+    with col_date2:
+        end_date = st.date_input("Payouts To", value=date.today())
+    
+    # Filter payouts by date range
+    filtered_payouts = my_payouts[
+        (my_payouts['Date'] >= pd.Timestamp(start_date)) &
+        (my_payouts['Date'] <= pd.Timestamp(end_date))
+    ]
+    filtered_total_payout = filtered_payouts['Payout Amount'].sum()
 
     if len(my_tasks) == 0:
         st.info("No tasks assigned yet.")
@@ -567,9 +586,9 @@ def researcher_dashboard():
 
         my_tasks['Status Display'] = my_tasks.apply(status_color, axis=1)
         
-        # Add payout info to each task
+        # Add payout info to each task (using filtered payouts for per-project display)
         def get_project_payout(project_name):
-            project_payouts = my_payouts[my_payouts['Project Name'] == project_name]
+            project_payouts = filtered_payouts[filtered_payouts['Project Name'] == project_name]
             return project_payouts['Payout Amount'].sum()
         
         my_tasks['Payout'] = my_tasks['Project Name'].apply(get_project_payout)
@@ -587,7 +606,8 @@ def researcher_dashboard():
             ])
             st.metric("Overdue", overdue_count)
         with col4:
-            st.metric("Total Payouts", f"${total_payout:,.0f}")
+            st.metric("Filtered Payouts", f"${filtered_total_payout:,.0f}",
+                     help=f"Payouts from {start_date} to {end_date}")
 
         st.divider()
 
@@ -603,7 +623,7 @@ def researcher_dashboard():
                     st.write(f"**Comments:** {task.get('Comments', 'None')}")
                     st.write(f"**Decision:** {task.get('Decision', 'Pending')}")
                     if task['Payout'] > 0:
-                        st.write(f"**Payout:** 💰 ${task['Payout']:,.0f}")
+                        st.write(f"**Payout (filtered period):** 💰 ${task['Payout']:,.0f}")
 
                 if task['Status'] != 'Completed':
                     if st.button("✅ Mark as Completed", key=f"complete_{idx}"):
@@ -624,15 +644,15 @@ def researcher_dashboard():
             unsafe_allow_html=True
         )
         
-        # Quick payout summary in sidebar
-        if total_payout > 0:
-            st.markdown(
-                f'<div style="text-align:center;padding:8px 0;">'
-                f'<p style="color:#f2650a;font-weight:700;font-size:16px;margin:0;">💰 Total Payouts</p>'
-                f'<p style="color:white;font-weight:700;font-size:22px;margin:0;">${total_payout:,.0f}</p>'
-                f'</div>',
-                unsafe_allow_html=True
-            )
+        # Overall lifetime payouts in sidebar
+        st.markdown(
+            f'<div style="text-align:center;padding:8px 0;">'
+            f'<p style="color:#f2650a;font-weight:700;font-size:14px;margin:0;">💰 Overall Payouts</p>'
+            f'<p style="color:white;font-weight:700;font-size:22px;margin:0;">${overall_payout:,.0f}</p>'
+            f'<p style="color:#aaaaaa;font-size:10px;margin:2px 0 0 0;">Lifetime total</p>'
+            f'</div>',
+            unsafe_allow_html=True
+        )
         
         st.markdown('<hr class="sidebar-divider">', unsafe_allow_html=True)
 
