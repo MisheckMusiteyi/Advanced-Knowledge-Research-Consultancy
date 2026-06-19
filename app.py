@@ -552,12 +552,12 @@ def researcher_dashboard():
     # Date-filtered payouts
     my_payouts['Date'] = pd.to_datetime(my_payouts['Date'])
     
-    # Date filter UI
-    col_date1, col_date2 = st.columns(2)
+    # Date filter + Payouts scorecard - right aligned
+    col_space, col_date1, col_date2, col_payout = st.columns([3, 1, 1, 1.5])
     with col_date1:
-        start_date = st.date_input("Payouts From", value=date.today().replace(day=1))
+        start_date = st.date_input("From", value=date.today().replace(day=1))
     with col_date2:
-        end_date = st.date_input("Payouts To", value=date.today())
+        end_date = st.date_input("To", value=date.today())
     
     # Filter payouts by date range
     filtered_payouts = my_payouts[
@@ -565,6 +565,10 @@ def researcher_dashboard():
         (my_payouts['Date'] <= pd.Timestamp(end_date))
     ]
     filtered_total_payout = filtered_payouts['Payout Amount'].sum()
+    
+    with col_payout:
+        st.metric("Payouts", f"${filtered_total_payout:,.0f}",
+                 help=f"Payouts from {start_date} to {end_date}")
 
     if len(my_tasks) == 0:
         st.info("No tasks assigned yet.")
@@ -594,7 +598,7 @@ def researcher_dashboard():
         my_tasks['Payout'] = my_tasks['Project Name'].apply(get_project_payout)
 
         # KPI row
-        col1, col2, col3, col4 = st.columns(4)
+        col1, col2, col3 = st.columns(3)
         with col1:
             st.metric("Total Tasks", len(my_tasks))
         with col2:
@@ -605,9 +609,6 @@ def researcher_dashboard():
                 (my_tasks['Days Remaining'] < 0) & (my_tasks['Status'] != 'Completed')
             ])
             st.metric("Overdue", overdue_count)
-        with col4:
-            st.metric("Filtered Payouts", f"${filtered_total_payout:,.0f}",
-                     help=f"Payouts from {start_date} to {end_date}")
 
         st.divider()
 
