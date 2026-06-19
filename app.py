@@ -535,15 +535,20 @@ def researcher_dashboard():
     display_name = profile["Display Name"] if profile["Display Name"] else st.session_state.researcher_name
     image_type = profile.get("Image Type", "image/jpeg")
 
-    st.title(f"Welcome, {display_name}")
-    st.subheader("Your Active Tasks")
-
+    # Title row with date filter + Payouts scorecard on the right
+    col_title, col_date1, col_date2, col_payout = st.columns([4, 1, 1, 1.5])
+    with col_title:
+        st.title(f"Welcome, {display_name}")
+    with col_date1:
+        start_date = st.date_input("From", value=date.today().replace(day=1), label_visibility="collapsed")
+    with col_date2:
+        end_date = st.date_input("To", value=date.today(), label_visibility="collapsed")
+    
+    # Load data
     projects_df = load_data("Projects")
     payouts_df = load_data("Researcher Payouts")
     
     my_tasks = projects_df[projects_df['Researcher Assigned'] == st.session_state.researcher_name]
-    
-    # Get this researcher's payouts
     my_payouts = payouts_df[payouts_df['Researcher Name'] == st.session_state.researcher_name]
     
     # Overall lifetime payout (unfiltered)
@@ -551,15 +556,6 @@ def researcher_dashboard():
     
     # Date-filtered payouts
     my_payouts['Date'] = pd.to_datetime(my_payouts['Date'])
-    
-    # Date filter + Payouts scorecard - right aligned
-    col_space, col_date1, col_date2, col_payout = st.columns([3, 1, 1, 1.5])
-    with col_date1:
-        start_date = st.date_input("From", value=date.today().replace(day=1))
-    with col_date2:
-        end_date = st.date_input("To", value=date.today())
-    
-    # Filter payouts by date range
     filtered_payouts = my_payouts[
         (my_payouts['Date'] >= pd.Timestamp(start_date)) &
         (my_payouts['Date'] <= pd.Timestamp(end_date))
@@ -567,8 +563,9 @@ def researcher_dashboard():
     filtered_total_payout = filtered_payouts['Payout Amount'].sum()
     
     with col_payout:
-        st.metric("Payouts", f"${filtered_total_payout:,.0f}",
-                 help=f"Payouts from {start_date} to {end_date}")
+        st.metric("Payouts", f"${filtered_total_payout:,.0f}")
+
+    st.subheader("Your Active Tasks")
 
     if len(my_tasks) == 0:
         st.info("No tasks assigned yet.")
@@ -590,7 +587,6 @@ def researcher_dashboard():
 
         my_tasks['Status Display'] = my_tasks.apply(status_color, axis=1)
         
-        # Add payout info to each task (using filtered payouts for per-project display)
         def get_project_payout(project_name):
             project_payouts = filtered_payouts[filtered_payouts['Project Name'] == project_name]
             return project_payouts['Payout Amount'].sum()
@@ -645,7 +641,6 @@ def researcher_dashboard():
             unsafe_allow_html=True
         )
         
-        # Overall lifetime payouts in sidebar
         st.markdown(
             f'<div style="text-align:center;padding:8px 0;">'
             f'<p style="color:#f2650a;font-weight:700;font-size:14px;margin:0;">💰 Overall Payouts</p>'
