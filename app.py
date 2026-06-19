@@ -126,41 +126,101 @@ st.markdown("""
         background-color: #f2650a !important;
     }
 
-    /* Sidebar collapse/expand toggle button - make it
-       visible on the dark sidebar background */
+    /* ---- Sidebar collapse/expand toggle button ----
+       Root cause: Streamlit renders the chevron inside this
+       button as a Material Symbols ligature span (text content
+       = "keyboard_double_arrow_left"). If the icon font fails
+       to load the raw text appears. Fix: hide ALL child content
+       of the button (SVG, spans, any text nodes) then draw a
+       clean CSS arrow with ::before so it can never depend on
+       a font asset. */
+    [data-testid="stSidebarCollapseButton"] button,
     [data-testid="stSidebarCollapseButton"] {
         background-color: #f2650a !important;
         border-radius: 50% !important;
         width: 2rem !important;
         height: 2rem !important;
+        min-width: 2rem !important;
         display: flex !important;
         align-items: center !important;
         justify-content: center !important;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.4) !important;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.5) !important;
+        border: none !important;
+        position: relative !important;
+        overflow: hidden !important;
     }
+    [data-testid="stSidebarCollapseButton"] button:hover,
     [data-testid="stSidebarCollapseButton"]:hover {
         background-color: #d45508 !important;
     }
-    /* The SVG arrow icon inside the button */
+    /* Kill the ligature text span AND any SVG inside the button */
+    [data-testid="stSidebarCollapseButton"] button span,
+    [data-testid="stSidebarCollapseButton"] button svg,
+    [data-testid="stSidebarCollapseButton"] span,
     [data-testid="stSidebarCollapseButton"] svg {
+        font-size: 0 !important;
+        line-height: 0 !important;
+        color: transparent !important;
+        fill: transparent !important;
+        stroke: transparent !important;
+        width: 0 !important;
+        height: 0 !important;
+        overflow: hidden !important;
         display: block !important;
-        stroke: white !important;
-        fill: white !important;
-        color: white !important;
-        width: 1rem !important;
-        height: 1rem !important;
     }
-    /* Also target the button that re-opens the sidebar
-       when it is collapsed (sits on the main content area) */
+    /* Draw a CSS-only left-pointing arrow (sidebar is open → arrow points left) */
+    [data-testid="stSidebarCollapseButton"] button::before,
+    [data-testid="stSidebarCollapseButton"]::before {
+        content: '' !important;
+        position: absolute !important;
+        top: 50% !important;
+        left: 55% !important;
+        transform: translate(-50%, -50%) rotate(135deg) !important;
+        width: 7px !important;
+        height: 7px !important;
+        border-top: 2px solid white !important;
+        border-right: 2px solid white !important;
+        border-bottom: none !important;
+        border-left: none !important;
+        display: block !important;
+    }
+    /* Re-open button (sits outside sidebar when it is collapsed) */
     [data-testid="stSidebarCollapsedControl"] button {
         background-color: #f2650a !important;
         border-radius: 50% !important;
+        width: 2rem !important;
+        height: 2rem !important;
+        min-width: 2rem !important;
         box-shadow: 0 2px 8px rgba(0,0,0,0.3) !important;
+        border: none !important;
+        position: relative !important;
+        overflow: hidden !important;
     }
+    [data-testid="stSidebarCollapsedControl"] button span,
     [data-testid="stSidebarCollapsedControl"] button svg {
-        stroke: white !important;
-        fill: white !important;
-        color: white !important;
+        font-size: 0 !important;
+        line-height: 0 !important;
+        color: transparent !important;
+        fill: transparent !important;
+        stroke: transparent !important;
+        width: 0 !important;
+        height: 0 !important;
+        overflow: hidden !important;
+    }
+    /* Arrow points right when sidebar is collapsed */
+    [data-testid="stSidebarCollapsedControl"] button::before {
+        content: '' !important;
+        position: absolute !important;
+        top: 50% !important;
+        left: 45% !important;
+        transform: translate(-50%, -50%) rotate(-45deg) !important;
+        width: 7px !important;
+        height: 7px !important;
+        border-top: 2px solid white !important;
+        border-right: 2px solid white !important;
+        border-bottom: none !important;
+        border-left: none !important;
+        display: block !important;
     }
 
     /* Radio buttons */
@@ -296,6 +356,28 @@ st.markdown("""
     /* Fix paragraph spacing */
     [data-testid="stExpanderDetails"] .stMarkdown p {
         margin-bottom: 8px !important;
+    }
+
+    /* ============================================
+       FILE UPLOADER FIX
+       Streamlit's file uploader browse button also uses
+       a Material Symbols icon span. When the font fails
+       to load the ligature text ("upload") appears as
+       visible text on top of the button label, producing
+       the double "uploadUpload" effect.
+       Fix: zero out the icon span inside the button only,
+       keeping the button label text intact.
+       ============================================ */
+    [data-testid="stFileUploaderDropzone"] button span[data-testid="stIconMaterial"],
+    [data-testid="stFileUploaderDropzone"] button span.material-symbols-rounded,
+    [data-testid="stFileUploaderDropzone"] button span[class*="icon"] {
+        font-size: 0 !important;
+        line-height: 0 !important;
+        width: 0 !important;
+        height: 0 !important;
+        color: transparent !important;
+        overflow: hidden !important;
+        display: inline-block !important;
     }
 
     /* ============================================
@@ -486,13 +568,15 @@ if 'username' not in st.session_state:
 def login_page():
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
-        # Use HTML img so we can control BOTH width and height independently,
-        # giving a wide/landscape look without distorting the aspect ratio —
-        # object-fit:contain keeps the logo fully visible inside the wider box.
+        # Logo: 100% width of this column so it matches the
+        # span of the company name heading below it exactly.
+        # object-fit:contain keeps it fully visible without
+        # distortion; max-height caps the vertical space.
         st.markdown(
             f'''<div style="text-align:center; margin-bottom:10px;">
                   <img src="{LOGO_URL}"
-                       style="width:420px; height:160px;
+                       style="width:100%;
+                              max-height:180px;
                               object-fit:contain;
                               display:inline-block;" />
                 </div>''',
@@ -628,31 +712,6 @@ def researcher_dashboard():
             ),
             unsafe_allow_html=True
         )
-        st.markdown('<hr class="sidebar-divider">', unsafe_allow_html=True)
-
-        # Photo uploader — always visible
-        st.markdown(
-            '<p style="color:#aaaaaa;font-size:12px;margin-bottom:4px;'
-            'text-align:center;">Update Profile Photo</p>',
-            unsafe_allow_html=True
-        )
-        uploaded = st.file_uploader(
-            "", type=["png", "jpg", "jpeg"],
-            key="sidebar_photo_upload",
-            label_visibility="collapsed"
-        )
-        if uploaded:
-            compressed = resize_image_for_storage(uploaded.getvalue())
-            new_b64 = base64.b64encode(compressed).decode()
-            save_profile(
-                st.session_state.username,
-                display_name,
-                new_b64,
-                "image/jpeg"
-            )
-            st.success("Photo updated!")
-            st.rerun()
-
         st.markdown('<hr class="sidebar-divider">', unsafe_allow_html=True)
 
         if st.button("⚙️ Profile Settings", use_container_width=True):
