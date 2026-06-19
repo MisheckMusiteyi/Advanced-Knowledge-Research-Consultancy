@@ -106,7 +106,15 @@ st.markdown("""
         font-family: 'Georgia', 'Times New Roman', serif !important;
     }
     
-    /* Sidebar */
+    /* ============================================
+       SIDEBAR + COLLAPSE BUTTON FIX
+       The sidebar background is #1a1a1a (near-black).
+       Streamlit's collapse/expand toggle button sits
+       at the edge of the sidebar and inherits a dark
+       icon colour, making it invisible against the dark
+       background. We target it specifically so it is
+       always visible regardless of theme.
+       ============================================ */
     [data-testid="stSidebar"] {
         background-color: #1a1a1a !important;
     }
@@ -117,7 +125,44 @@ st.markdown("""
     [data-testid="stSidebar"] .stButton > button {
         background-color: #f2650a !important;
     }
-    
+
+    /* Sidebar collapse/expand toggle button - make it
+       visible on the dark sidebar background */
+    [data-testid="stSidebarCollapseButton"] {
+        background-color: #f2650a !important;
+        border-radius: 50% !important;
+        width: 2rem !important;
+        height: 2rem !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.4) !important;
+    }
+    [data-testid="stSidebarCollapseButton"]:hover {
+        background-color: #d45508 !important;
+    }
+    /* The SVG arrow icon inside the button */
+    [data-testid="stSidebarCollapseButton"] svg {
+        display: block !important;
+        stroke: white !important;
+        fill: white !important;
+        color: white !important;
+        width: 1rem !important;
+        height: 1rem !important;
+    }
+    /* Also target the button that re-opens the sidebar
+       when it is collapsed (sits on the main content area) */
+    [data-testid="stSidebarCollapsedControl"] button {
+        background-color: #f2650a !important;
+        border-radius: 50% !important;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.3) !important;
+    }
+    [data-testid="stSidebarCollapsedControl"] button svg {
+        stroke: white !important;
+        fill: white !important;
+        color: white !important;
+    }
+
     /* Radio buttons */
     .stRadio label {
         color: #333 !important;
@@ -176,7 +221,7 @@ st.markdown("""
         content: none !important;
     }
 
-    /* Hide icon font text */
+    /* Hide icon font text & SVG that causes the overlap */
     [data-testid="stExpander"] summary [data-testid="stExpanderToggleIcon"],
     [data-testid="stExpander"] summary [data-testid="stIconMaterial"],
     [data-testid="stExpander"] summary .material-icons {
@@ -188,13 +233,11 @@ st.markdown("""
         overflow: hidden !important;
         display: inline-block !important;
     }
-
-    /* Hide SVG icons */
     [data-testid="stExpander"] summary svg {
         display: none !important;
     }
 
-    /* Add visible arrow indicator before the title */
+    /* Pure CSS arrow - no font dependency */
     [data-testid="stExpander"] summary::before {
         content: '▶' !important;
         display: inline-block !important;
@@ -204,8 +247,6 @@ st.markdown("""
         transition: transform 0.2s ease !important;
         flex-shrink: 0 !important;
     }
-
-    /* Rotate arrow when open */
     [data-testid="stExpander"] details[open] summary::before {
         transform: rotate(90deg) !important;
     }
@@ -256,6 +297,32 @@ st.markdown("""
     [data-testid="stExpanderDetails"] .stMarkdown p {
         margin-bottom: 8px !important;
     }
+
+    /* ============================================
+       SIDEBAR PROFILE SECTION
+       ============================================ */
+    .sidebar-profile-name {
+        text-align: center;
+        color: #f2650a !important;
+        font-weight: 700;
+        font-size: 15px;
+        margin-top: 8px;
+        margin-bottom: 0;
+        font-family: 'Georgia', 'Times New Roman', serif;
+    }
+    .sidebar-profile-role {
+        text-align: center;
+        color: #aaaaaa;
+        font-size: 12px;
+        margin-top: 2px;
+        margin-bottom: 12px;
+        font-family: 'Georgia', 'Times New Roman', serif;
+    }
+    .sidebar-divider {
+        border: none;
+        border-top: 1px solid #333333;
+        margin: 10px 0;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -266,14 +333,12 @@ st.markdown("""
 def connect_to_sheets():
     scope = ["https://spreadsheets.google.com/feeds",
              "https://www.googleapis.com/auth/drive"]
-    
     try:
         creds_dict = dict(st.secrets)
         creds_dict.pop("admin_password", None)
         creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
     except Exception as e:
         creds = ServiceAccountCredentials.from_json_keyfile_name("credentials.json", scope)
-    
     client = gspread.authorize(creds)
     return client
 
@@ -300,116 +365,107 @@ def get_profile_data(username):
             return user.iloc[0].to_dict()
     except:
         pass
-    
     return {
         "Username": username,
         "Display Name": "",
         "Profile Photo": "",
-        "Image Type": "image/png"
+        "Image Type": "image/jpeg"
     }
 
-def save_profile(username, display_name, photo_b64="", image_type="image/png"):
+def save_profile(username, display_name, photo_b64="", image_type="image/jpeg"):
     """Update or create profile records in Google Sheets."""
     client = connect_to_sheets()
     sheet = client.open("Advanced Knowledge Research Consultancy").worksheet("Researcher Profiles")
     records = sheet.get_all_records()
-    
-    # If photo is too large, skip storing it
+
     if len(photo_b64) > 45000:
         st.warning("⚠️ Image too large. Please use a smaller image (under 100KB).")
         photo_b64 = ""
-    
+
     for idx, row in enumerate(records, start=2):
         if row["Username"] == username:
             sheet.update(f"B{idx}", display_name)
             sheet.update(f"C{idx}", photo_b64)
             sheet.update(f"D{idx}", image_type)
             return
-    
+
     sheet.append_row([username, display_name, photo_b64, image_type])
 
 def resize_image_for_storage(image_bytes):
-    """Resize image to fit within Google Sheets cell limits."""
+    """Resize and compress image to fit within Google Sheets cell limits."""
     img = Image.open(BytesIO(image_bytes))
-    
     if img.mode in ('RGBA', 'P'):
         img = img.convert('RGB')
-    
-    img.thumbnail((300, 300), Image.LANCZOS)
-    
+    # Square crop from center
+    w, h = img.size
+    side = min(w, h)
+    img = img.crop(((w - side) // 2, (h - side) // 2,
+                    (w + side) // 2, (h + side) // 2))
+    img = img.resize((200, 200), Image.LANCZOS)
     buffer = BytesIO()
     img.save(buffer, format='JPEG', quality=60, optimize=True)
-    buffer.seek(0)
-    
     return buffer.getvalue()
 
-def display_profile_image(photo_b64=None, image_type="image/png"):
-    """Display the profile image in a circular format."""
+def get_initials(full_name):
+    if not full_name:
+        return "?"
+    parts = [p for p in full_name.strip().split() if p]
+    if len(parts) == 0:
+        return "?"
+    if len(parts) == 1:
+        return parts[0][0].upper()
+    return (parts[0][0] + parts[-1][0]).upper()
+
+def sidebar_avatar_html(photo_b64, image_type, name, size=100):
+    """Render a circular avatar + name for the sidebar."""
     if photo_b64:
-        st.markdown(
-            f"""
-            <img src="data:{image_type};base64,{photo_b64}"
-            style="
-                width:120px;
-                height:120px;
-                border-radius:50%;
-                object-fit:cover;
-                border:4px solid #f2650a;
-            ">
-            """,
-            unsafe_allow_html=True
+        img_tag = (
+            f'<img src="data:{image_type};base64,{photo_b64}" '
+            f'style="width:{size}px;height:{size}px;border-radius:50%;'
+            f'object-fit:cover;border:3px solid #f2650a;display:block;margin:0 auto;" />'
         )
     else:
-        st.markdown(
-            """
-            <div style="
-                width:120px;
-                height:120px;
-                border-radius:50%;
-                background:#f2650a;
-                display:flex;
-                align-items:center;
-                justify-content:center;
-                color:white;
-                font-size:50px;
-                font-weight:bold;
-            ">
-            
-            </div>
-            """,
-            unsafe_allow_html=True
+        initials = get_initials(name)
+        img_tag = (
+            f'<div style="width:{size}px;height:{size}px;border-radius:50%;'
+            f'background:#f2650a;color:white;display:flex;align-items:center;'
+            f'justify-content:center;font-size:{int(size*0.38)}px;font-weight:700;'
+            f'font-family:Georgia,serif;margin:0 auto;border:3px solid #d45508;">'
+            f'{initials}</div>'
         )
+    return (
+        f'<div style="padding:16px 0 4px 0;">'
+        f'{img_tag}'
+        f'<p class="sidebar-profile-name">{name}</p>'
+        f'<p class="sidebar-profile-role">Researcher</p>'
+        f'</div>'
+    )
 
 # ============================================
 # DIALOG: Profile Settings
 # ============================================
-@st.dialog(" Profile Settings")
+@st.dialog("Profile Settings")
 def profile_settings_dialog(display_name, profile):
-    """Profile settings popup dialog."""
     new_name = st.text_input("Display Name", value=display_name)
     new_photo = st.file_uploader("Profile Photo", type=["png", "jpg", "jpeg"])
-    
-    # Image preview before saving
+
     if new_photo:
-        st.image(new_photo, width=150, caption="Profile Preview")
-    
+        st.image(new_photo, width=150, caption="Preview")
+
     col1, col2 = st.columns(2)
     with col1:
-        if st.button(" Save Profile", use_container_width=True):
+        if st.button("Save Profile", use_container_width=True):
             photo_b64 = profile["Profile Photo"]
-            image_type = profile.get("Image Type", "image/png")
-            
+            image_type = profile.get("Image Type", "image/jpeg")
             if new_photo:
                 compressed_bytes = resize_image_for_storage(new_photo.getvalue())
                 image_type = "image/jpeg"
                 photo_b64 = base64.b64encode(compressed_bytes).decode()
-            
             save_profile(st.session_state.username, new_name, photo_b64, image_type)
-            st.success("Profile updated successfully!")
+            st.success("Profile updated!")
             st.rerun()
-    
     with col2:
-        if st.button(" Cancel", use_container_width=True):
+        if st.button("Cancel", use_container_width=True):
             st.rerun()
 
 # ============================================
@@ -423,8 +479,6 @@ if 'researcher_name' not in st.session_state:
     st.session_state.researcher_name = None
 if 'username' not in st.session_state:
     st.session_state.username = None
-if 'profile_image' not in st.session_state:
-    st.session_state.profile_image = None
 
 # ============================================
 # LOGIN PAGE
@@ -432,13 +486,30 @@ if 'profile_image' not in st.session_state:
 def login_page():
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
-        st.image(LOGO_URL, width=500)
-    
-    st.markdown("<h1 style='text-align: center; margin-top: -10px;'>Advanced Knowledge Research Consultancy</h1>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align: center; color: #666; font-size: 16px;'>Research Consultancy Portal</p>", unsafe_allow_html=True)
-    
+        # Use HTML img so we can control BOTH width and height independently,
+        # giving a wide/landscape look without distorting the aspect ratio —
+        # object-fit:contain keeps the logo fully visible inside the wider box.
+        st.markdown(
+            f'''<div style="text-align:center; margin-bottom:10px;">
+                  <img src="{LOGO_URL}"
+                       style="width:420px; height:160px;
+                              object-fit:contain;
+                              display:inline-block;" />
+                </div>''',
+            unsafe_allow_html=True
+        )
+
+    st.markdown(
+        "<h1 style='text-align:center;margin-top:0;'>Advanced Knowledge Research Consultancy</h1>",
+        unsafe_allow_html=True
+    )
+    st.markdown(
+        "<p style='text-align:center;color:#666;font-size:16px;'>Research Consultancy Portal</p>",
+        unsafe_allow_html=True
+    )
+
     st.divider()
-    
+
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
         login_type = st.radio("Login as:", ["Researcher", "Admin"], horizontal=True)
@@ -449,11 +520,11 @@ def login_page():
 
             if st.button("Login", use_container_width=True):
                 logins_df = load_data("Researcher Logins")
-
-                match = logins_df[(logins_df['Username'] == username) &
-                                (logins_df['Password'] == password) &
-                                (logins_df['Status'] == 'Active')]
-
+                match = logins_df[
+                    (logins_df['Username'] == username) &
+                    (logins_df['Password'] == password) &
+                    (logins_df['Status'] == 'Active')
+                ]
                 if len(match) > 0:
                     st.session_state.logged_in = True
                     st.session_state.user_type = "Researcher"
@@ -466,13 +537,11 @@ def login_page():
 
         else:
             admin_password = st.text_input("Admin Password", type="password")
-
             if st.button("Login", use_container_width=True):
                 try:
                     correct_password = st.secrets["admin_password"]
                 except:
                     correct_password = "admin123"
-                
                 if admin_password == correct_password:
                     st.session_state.logged_in = True
                     st.session_state.user_type = "Admin"
@@ -485,32 +554,14 @@ def login_page():
 # RESEARCHER DASHBOARD
 # ============================================
 def researcher_dashboard():
-    # Load profile data
     profile = get_profile_data(st.session_state.username)
     display_name = profile["Display Name"] if profile["Display Name"] else st.session_state.researcher_name
-    image_type = profile.get("Image Type", "image/png")
-    
-    # Profile section at top
-    col1, col2, col3 = st.columns([1, 3, 1])
-    with col1:
-        display_profile_image(profile["Profile Photo"], image_type)
-    
-    with col2:
-        st.title(f"Welcome, {display_name}")
-    
-    with col3:
-        # Display name
-        st.markdown(f"""
-        <div style="text-align: center; margin-top: 10px;">
-            <p style="color: #f2650a; font-weight: 700; font-size: 14px; margin: 5px 0 0 0;">{display_name}</p>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    st.divider()
+    image_type = profile.get("Image Type", "image/jpeg")
+
+    st.title(f"Welcome, {display_name}")
     st.subheader("Your Active Tasks")
 
     projects_df = load_data("Projects")
-
     my_tasks = projects_df[projects_df['Researcher Assigned'] == st.session_state.researcher_name]
 
     if len(my_tasks) == 0:
@@ -540,7 +591,9 @@ def researcher_dashboard():
             completed_count = len(my_tasks[my_tasks['Status'] == 'Completed'])
             st.metric("Completed", completed_count)
         with col3:
-            overdue_count = len(my_tasks[(my_tasks['Days Remaining'] < 0) & (my_tasks['Status'] != 'Completed')])
+            overdue_count = len(my_tasks[
+                (my_tasks['Days Remaining'] < 0) & (my_tasks['Status'] != 'Completed')
+            ])
             st.metric("Overdue", overdue_count)
 
         st.divider()
@@ -563,24 +616,55 @@ def researcher_dashboard():
                         st.success("Task marked as completed!")
                         st.rerun()
 
-    # Sidebar - Clean with only navigation
+    # ---- SIDEBAR ----
     with st.sidebar:
-        st.markdown("## AKRC Portal")
-        st.markdown("---")
-        
-        # Profile Settings button
-        if st.button(" Profile Settings", use_container_width=True):
+        # Circular profile avatar + researcher name
+        st.markdown(
+            sidebar_avatar_html(
+                profile["Profile Photo"],
+                image_type,
+                display_name,
+                size=110
+            ),
+            unsafe_allow_html=True
+        )
+        st.markdown('<hr class="sidebar-divider">', unsafe_allow_html=True)
+
+        # Photo uploader — always visible
+        st.markdown(
+            '<p style="color:#aaaaaa;font-size:12px;margin-bottom:4px;'
+            'text-align:center;">Update Profile Photo</p>',
+            unsafe_allow_html=True
+        )
+        uploaded = st.file_uploader(
+            "", type=["png", "jpg", "jpeg"],
+            key="sidebar_photo_upload",
+            label_visibility="collapsed"
+        )
+        if uploaded:
+            compressed = resize_image_for_storage(uploaded.getvalue())
+            new_b64 = base64.b64encode(compressed).decode()
+            save_profile(
+                st.session_state.username,
+                display_name,
+                new_b64,
+                "image/jpeg"
+            )
+            st.success("Photo updated!")
+            st.rerun()
+
+        st.markdown('<hr class="sidebar-divider">', unsafe_allow_html=True)
+
+        if st.button("⚙️ Profile Settings", use_container_width=True):
             profile_settings_dialog(display_name, profile)
-        
-        st.markdown("---")
-        
-        # Logout button
-        if st.button(" Logout", use_container_width=True):
+
+        st.markdown('<hr class="sidebar-divider">', unsafe_allow_html=True)
+
+        if st.button("🚪 Logout", use_container_width=True):
             st.session_state.logged_in = False
             st.session_state.user_type = None
             st.session_state.researcher_name = None
             st.session_state.username = None
-            st.session_state.profile_image = None
             st.rerun()
 
 # ============================================
@@ -594,24 +678,22 @@ def admin_dashboard():
     payments_df = load_data("Project Payments Received")
     payouts_df = load_data("Researcher Payouts")
 
-    tab1, tab2, tab3 = st.tabs([" Projects Overview", " Financial Overview", " All Data"])
+    tab1, tab2, tab3 = st.tabs(["📊 Projects Overview", "💰 Financial Overview", "📋 All Data"])
 
     with tab1:
         st.subheader("Project Progress")
-
         col1, col2, col3, col4 = st.columns(4)
         with col1:
-            total_projects = projects_df['Project Name'].nunique()
-            st.metric("Total Projects", total_projects)
+            st.metric("Total Projects", projects_df['Project Name'].nunique())
         with col2:
-            total_tasks = len(projects_df)
-            st.metric("Total Tasks", total_tasks)
+            st.metric("Total Tasks", len(projects_df))
         with col3:
-            completed = len(projects_df[projects_df['Status'] == 'Completed'])
-            st.metric("Completed", completed)
+            st.metric("Completed", len(projects_df[projects_df['Status'] == 'Completed']))
         with col4:
-            overdue = len(projects_df[(pd.to_datetime(projects_df['Project Deadline']) < pd.Timestamp(date.today())) &
-                                    (projects_df['Status'] != 'Completed')])
+            overdue = len(projects_df[
+                (pd.to_datetime(projects_df['Project Deadline']) < pd.Timestamp(date.today())) &
+                (projects_df['Status'] != 'Completed')
+            ])
             st.metric("Overdue", overdue)
 
         st.subheader("Completion by Project")
@@ -619,13 +701,14 @@ def admin_dashboard():
             Total_Tasks=('Task Name/Description', 'count'),
             Completed_Tasks=('Status', lambda x: (x == 'Completed').sum())
         )
-        project_progress['Completion %'] = (project_progress['Completed_Tasks'] / project_progress['Total_Tasks'] * 100).round(1)
+        project_progress['Completion %'] = (
+            project_progress['Completed_Tasks'] / project_progress['Total_Tasks'] * 100
+        ).round(1)
         st.dataframe(project_progress, width='stretch')
         st.bar_chart(project_progress['Completion %'])
 
     with tab2:
         st.subheader("Financial Overview")
-
         total_invoiced = revenue_df['Total Amount Billed'].sum()
         total_received = payments_df['Amount Received'].sum()
         total_payouts = payouts_df['Payout Amount'].sum()
@@ -638,7 +721,6 @@ def admin_dashboard():
             st.metric("Total Received", f"${total_received:,.0f}")
         with col3:
             st.metric("Balance Owing", f"${total_invoiced - total_received:,.0f}")
-
         col1, col2 = st.columns(2)
         with col1:
             st.metric("Company Retained", f"${total_retained:,.0f}")
@@ -650,20 +732,16 @@ def admin_dashboard():
             Invoiced=('Total Amount Billed', 'sum'),
             Retained=('Amount Retained (Company)', 'sum')
         ).reset_index()
-        
         payments_by_project = payments_df.groupby('Project Name').agg(
             Received=('Amount Received', 'sum')
         ).reset_index()
-        
         project_finance = project_finance.merge(payments_by_project, on='Project Name', how='left')
         project_finance['Received'] = project_finance['Received'].fillna(0)
         project_finance['Balance'] = project_finance['Invoiced'] - project_finance['Received']
-        
         st.dataframe(project_finance, width='stretch')
 
     with tab3:
         st.subheader("All Projects & Tasks")
-
         col1, col2, col3 = st.columns(3)
         with col1:
             project_filter = st.multiselect("Filter by Project", projects_df['Project Name'].unique())
@@ -681,15 +759,17 @@ def admin_dashboard():
             filtered_df = filtered_df[filtered_df['Status'].isin(status_filter)]
 
         st.dataframe(filtered_df, width='stretch')
-
         csv = filtered_df.to_csv(index=False)
-        st.download_button(" Download as CSV", csv, "projects_export.csv", "text/csv")
+        st.download_button("📥 Download as CSV", csv, "projects_export.csv", "text/csv")
 
     with st.sidebar:
-        st.markdown("## AKRC Portal")
-        st.markdown("---")
-        
-        if st.button("Logout", use_container_width=True):
+        st.markdown(
+            f'<div style="text-align:center;padding:16px 0;">'
+            f'<img src="{LOGO_URL}" style="width:140px;object-fit:contain;" /></div>',
+            unsafe_allow_html=True
+        )
+        st.markdown('<hr class="sidebar-divider">', unsafe_allow_html=True)
+        if st.button("🚪 Logout", use_container_width=True):
             st.session_state.logged_in = False
             st.session_state.user_type = None
             st.rerun()
