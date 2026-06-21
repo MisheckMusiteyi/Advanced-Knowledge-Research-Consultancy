@@ -651,10 +651,10 @@ def researcher_dashboard():
             unsafe_allow_html=True
         )
         st.markdown('<hr class="sidebar-divider">', unsafe_allow_html=True)
-        if st.button("⚙️ Profile Settings", use_container_width=True):
+        if st.button("Profile Settings", use_container_width=True):
             profile_settings_dialog(display_name, profile)
         st.markdown('<hr class="sidebar-divider">', unsafe_allow_html=True)
-        if st.button("🚪 Logout", use_container_width=True):
+        if st.button("Logout", use_container_width=True):
             for key in ['logged_in', 'user_type', 'researcher_name', 'username']:
                 st.session_state[key] = None
             st.session_state.logged_in = False
@@ -671,7 +671,7 @@ def admin_dashboard():
     payments_df = load_data("Project Payments Received")
     payouts_df  = load_data("Researcher Payouts")
 
-    tab1, tab2, tab3 = st.tabs(["📊 Projects Overview", "💰 Financial Overview", "📋 All Data"])
+    tab1, tab2, tab3 = st.tabs([" Projects Overview", " Financial Overview", " All Data"])
 
     with tab1:
         st.subheader("Project Progress")
@@ -740,7 +740,7 @@ def admin_dashboard():
 
         st.dataframe(filtered_df, use_container_width=True)
         st.download_button(
-            "📥 Download as CSV",
+            " Download as CSV",
             filtered_df.to_csv(index=False),
             "projects_export.csv", "text/csv"
         )
@@ -757,7 +757,7 @@ def admin_dashboard():
             unsafe_allow_html=True
         )
         st.markdown('<hr class="sidebar-divider">', unsafe_allow_html=True)
-        if st.button("🚪 Logout", use_container_width=True):
+        if st.button(" Logout", use_container_width=True):
             st.session_state.logged_in = False
             st.session_state.user_type = None
             st.rerun()
