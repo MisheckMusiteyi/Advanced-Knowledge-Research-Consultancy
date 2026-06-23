@@ -399,20 +399,25 @@ def save_profile(username, display_name, photo_b64="", image_type="image/jpeg"):
     sheet = client.open("Advanced Knowledge Research Consultancy").worksheet("Researcher Profiles")
     records = sheet.get_all_records()
     
+    # Ensure display_name is never None or empty
+    if not display_name:
+        display_name = username
+    
     if len(photo_b64) > 45000:
         st.warning("Image too large. Please use a smaller image.")
         photo_b64 = ""
     
+    # Build the row data
+    row_data = [username, display_name, photo_b64, image_type]
+    
     for idx, row in enumerate(records, start=2):
         if row["Username"] == username:
-            sheet.update(f"B{idx}", display_name)
-            time.sleep(0.5)
-            sheet.update(f"C{idx}", photo_b64)
-            time.sleep(0.5)
-            sheet.update(f"D{idx}", image_type)
+            # Update entire row at once instead of cell-by-cell
+            sheet.update(f"A{idx}:D{idx}", [row_data])
             return
     
-    sheet.append_row([username, display_name, photo_b64, image_type])
+    # Append new row
+    sheet.append_row(row_data)
 
 def resize_image_for_storage(image_bytes):
     img = Image.open(BytesIO(image_bytes))
