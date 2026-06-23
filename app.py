@@ -4,6 +4,7 @@ from oauth2client.service_account import ServiceAccountCredentials
 import pandas as pd
 import json
 import base64
+import time
 from io import BytesIO
 from datetime import datetime, date
 from PIL import Image
@@ -115,7 +116,6 @@ st.markdown("""
         font-family: 'Georgia', 'Times New Roman', serif !important;
         background-color: transparent !important;
     }
-    /* Radio button circle itself */
     div[data-testid="stRadio"] input[type="radio"] {
         accent-color: #f2650a !important;
     }
@@ -135,7 +135,6 @@ st.markdown("""
         border-color: #f2650a !important;
         box-shadow: 0 0 0 2px rgba(242,101,10,0.2) !important;
     }
-    /* Input labels */
     .stTextInput label,
     .stDateInput label,
     .stNumberInput label,
@@ -162,7 +161,6 @@ st.markdown("""
         border: 1px solid #e0e0e0 !important;
         border-radius: 8px !important;
     }
-    /* Override any dark-mode iframe background */
     .stDataFrame [data-testid="data-grid-canvas"],
     .glideDataGrid canvas { background: #ffffff !important; }
 
@@ -174,7 +172,6 @@ st.markdown("""
         border-radius: 8px !important;
         padding: 8px !important;
     }
-    /* Altair/Vega canvas */
     canvas { background-color: #ffffff !important; }
 
     /* ── Tabs ── */
@@ -204,9 +201,6 @@ st.markdown("""
         color: white !important;
     }
 
-    /* Hide the sidebar collapse/expand button entirely –
-       the ligature text it contains cannot be suppressed
-       via CSS alone and Streamlit's CSP blocks JS fixes. */
     [data-testid="stSidebarCollapseButton"],
     [data-testid="stSidebarCollapsedControl"] {
         display: none !important;
@@ -242,7 +236,6 @@ st.markdown("""
         display: none !important;
         content: none !important;
     }
-    /* Hide the icon-font span that causes text overlap */
     [data-testid="stExpander"] summary [data-testid="stExpanderToggleIcon"],
     [data-testid="stExpander"] summary [data-testid="stIconMaterial"],
     [data-testid="stExpander"] summary .material-icons {
@@ -255,7 +248,6 @@ st.markdown("""
         display: inline-block !important;
     }
     [data-testid="stExpander"] summary svg { display: none !important; }
-    /* Pure-CSS triangle arrow */
     [data-testid="stExpander"] summary::before {
         content: '▶' !important;
         display: inline-block !important;
@@ -359,14 +351,34 @@ def connect_to_sheets():
     return gspread.authorize(creds)
 
 def load_data(sheet_name):
-    client = connect_to_sheets()
-    sheet = client.open("Advanced Knowledge Research Consultancy").worksheet(sheet_name)
-    return pd.DataFrame(sheet.get_all_records())
+    max_retries = 3
+    for attempt in range(max_retries):
+        try:
+            connect_to_sheets.clear()
+            client = connect_to_sheets()
+            sheet = client.open("Advanced Knowledge Research Consultancy").worksheet(sheet_name)
+            data = sheet.get_all_records()
+            return pd.DataFrame(data)
+        except Exception as e:
+            if attempt < max_retries - 1:
+                time.sleep(2)
+            else:
+                raise e
 
 def update_cell(sheet_name, row, col, value):
-    client = connect_to_sheets()
-    sheet = client.open("Advanced Knowledge Research Consultancy").worksheet(sheet_name)
-    sheet.update_cell(row, col, value)
+    max_retries = 3
+    for attempt in range(max_retries):
+        try:
+            connect_to_sheets.clear()
+            client = connect_to_sheets()
+            sheet = client.open("Advanced Knowledge Research Consultancy").worksheet(sheet_name)
+            sheet.update_cell(row, col, value)
+            return
+        except Exception as e:
+            if attempt < max_retries - 1:
+                time.sleep(2)
+            else:
+                raise e
 
 # ============================================
 # PROFILE HELPERS
@@ -382,18 +394,24 @@ def get_profile_data(username):
     return {"Username": username, "Display Name": "", "Profile Photo": "", "Image Type": "image/jpeg"}
 
 def save_profile(username, display_name, photo_b64="", image_type="image/jpeg"):
+    connect_to_sheets.clear()
     client = connect_to_sheets()
     sheet = client.open("Advanced Knowledge Research Consultancy").worksheet("Researcher Profiles")
     records = sheet.get_all_records()
+    
     if len(photo_b64) > 45000:
         st.warning("Image too large. Please use a smaller image.")
         photo_b64 = ""
+    
     for idx, row in enumerate(records, start=2):
         if row["Username"] == username:
             sheet.update(f"B{idx}", display_name)
+            time.sleep(0.5)
             sheet.update(f"C{idx}", photo_b64)
+            time.sleep(0.5)
             sheet.update(f"D{idx}", image_type)
             return
+    
     sheet.append_row([username, display_name, photo_b64, image_type])
 
 def resize_image_for_storage(image_bytes):
@@ -481,7 +499,6 @@ if 'username' not in st.session_state:
 # LOGIN PAGE
 # ============================================
 def login_page():
-    # Full-width logo matching the heading span
     st.markdown(
         f'''<div style="text-align:center;margin-bottom:6px;margin-top:1rem;">
               <img src="{LOGO_URL}"
